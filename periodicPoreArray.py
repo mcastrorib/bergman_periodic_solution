@@ -33,9 +33,16 @@ class PeriodicPoreArray():
         self.theta_Pr = np.zeros(self.get_points())
         self.theta_Mr = np.zeros(self.get_points())
 
-        # Eigenvalue problem matrices
+        # Initialize eigenvalue problem matrices
+        self.wavevector_k = np.zeros(3)
+        self.wavevector_gk = np.zeros(3)
+        self.wavevector_q = np.zeros(3)
         self.Tgg = np.asmatrix(np.zeros([self.get_points(), self.get_points()], dtype=complex))
-        self.Wgg = np.asmatrix(np.zeros([self.get_points(), self.get_points()], dtype=complex))        
+        self.Tgg_inv = np.asmatrix(np.zeros([self.get_points(), self.get_points()], dtype=complex))
+        self.Wgg = np.asmatrix(np.zeros([self.get_points(), self.get_points()], dtype=complex))
+        self.eigen_values = np.zeros(self.get_points(), dtype=complex)
+        self.eigen_vectors = np.asmatrix(np.zeros([self.get_points(),self.get_points()], dtype=complex)) 
+        self.eigen_states = np.zeros(self.get_points(), dtype=complex)
         
         return
     
@@ -127,6 +134,22 @@ class PeriodicPoreArray():
             return False
         else:
             return True    
+    
+    # -- Solve
+    def solve(self):
+        self.build_matrices()
+        self.solve_eigenvalues()
+        self.build_eigenstate()
+        return
+    
+    def build_matrices(self):
+        return
+    
+    def solve_eigenvalues(self):
+        return
+    
+    def build_eigenstates(self):
+        return
 
     # -- set and get methods
     def set_essentials(self, _bvalue):
@@ -262,6 +285,52 @@ class PeriodicPoreArray():
             return self.theta_Mr
         else:
             return self.theta_Mr[index]
+    
+    def set_wavevector_k(self, _k):
+        self.wavevector_k = _k
+        self.set_wavevector_gk()
+        self.set_wavevector_q()
+        return
+    
+    def get_wavevector_k(self):
+        return self.wavevector_k
+    
+    # g_k is the reciprocal lattice vector that is closest to k
+    def set_wavevector_gk(self):
+        gk_index = 0
+        gk_value = self.get_G(gk_index)
+        distance = np.linalg.norm(gk_value - self.get_wavevector_k())
+
+        for idx in range(1, self.get_points()):
+            gk_value = self.get_G(idx)
+            if(distance < np.linalg.norm(gk_value - self.get_wavevector_k())):
+                gk_index = idx
+        
+        self.wavevector_gk = self.get_G(gk_index)
+        return
+    
+    def get_wavevector_gk(self):
+        return self.wavevector_gk
+    
+    def set_wavevector_q(self):
+        self.wavevector_q = self.get_wavevector_k() - self.get_wavevector_gk()
+        return
+    
+    def get_wavevector_q(self):
+        return self.wavevector_q
+    
+    def set_Tgg(self, value, row, column):
+        self.Tgg[row, column] = value
+        return
+    
+    def get_Tgg(self, row=None, column=None):
+        if(row == None):
+            return self.Tgg
+        else:
+            return self.Tgg[row, column]
+    
+
+
     
     # -- Datavis for debug
     def dataviz_theta(self):
