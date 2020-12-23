@@ -12,6 +12,7 @@ class PeriodicPoreArray():
         self.fluid_diffusion_coefficient = _fluid_diffusion_coefficient
         self.omega = _omega
 
+        
         # Private parameters
         self._unit_cell_volume = _unit_cell_length**3
         self._n_linspace_length = int(1 + (2 * _unit_cell_divisions))
@@ -22,9 +23,15 @@ class PeriodicPoreArray():
 
         # -- Initialize vectors and matrices
         # Spatial vector R
-        self.R = np.zeros([self.get_points(), 3])
+        self.spatial_points = 0
+        self.spatial_divisions = self.get_unit_cell_divisions()
+        self.set_spatial_points()
+        self.R = np.zeros([self.get_spatial_points(), 3])
 
         # Wavevector G
+        self.reciprocal_points = 0
+        self.reciprocal_divisions = self.get_unit_cell_divisions()
+        self.set_reciprocal_points()
         self.G = np.zeros([self.get_points(), 3])
 
         # Characteristic spatial functions 
@@ -32,17 +39,18 @@ class PeriodicPoreArray():
         # Mr: matrix 
         self.theta_Pr = np.zeros(self.get_points())
         self.theta_Mr = np.zeros(self.get_points())
-        self.theta_Pg = np.asmatrix(np.zeros([self.get_points(), self.get_points()], dtype=complex))
-        self.theta_Mg = np.asmatrix(np.zeros([self.get_points(), self.get_points()], dtype=complex))
+        self.theta_Pg = np.asmatrix(np.zeros([self.get_points(), self.get_points()]))
+        self.theta_Mg = np.asmatrix(np.zeros([self.get_points(), self.get_points()]))
 
         # Initialize eigenvalue problem matrices
         self.wavevector_k = np.zeros(3)
-        self.wavevector_gk = np.zeros(3)
+        self.wavevector_gk = np.zeros(3) # PODE SER SÓ O INDEX PRO G CORRESPONDENTE!!!
+        self.gk_index = 0
         self.wavevector_q = np.zeros(3)
-        self.Tgg = np.asmatrix(np.zeros([self.get_points(), self.get_points()], dtype=complex))
-        self.Wgg = np.asmatrix(np.zeros([self.get_points(), self.get_points()], dtype=complex))
-        self.invW = np.asmatrix(np.zeros([self.get_points(), self.get_points()], dtype=complex))
-        self.invWxT = np.asmatrix(np.zeros([self.get_points(), self.get_points()], dtype=complex))
+        self.Tgg = np.asmatrix(np.zeros([self.get_points(), self.get_points()]))
+        self.Wgg = np.asmatrix(np.zeros([self.get_points(), self.get_points()]))
+        self.invW = np.asmatrix(np.zeros([self.get_points(), self.get_points()]))
+        self.invWxT = np.asmatrix(np.zeros([self.get_points(), self.get_points()]))
         self.eigen_values = np.zeros(self.get_points(), dtype=complex)
         self.eigen_vectors = np.asmatrix(np.zeros([self.get_points(),self.get_points()], dtype=complex)) 
         self.eigen_states = np.zeros(self.get_points(), dtype=complex)
@@ -67,28 +75,31 @@ class PeriodicPoreArray():
         self.set_n_linspace_length()
         self.set_n_linspace()
         self.set_points()
+        self.set_spatial_points()
+        self.set_reciprocal_points()
         self.set_essentials(True)
         return
     
     def build_spatial_vector_R(self):
-        self.R = np.zeros([self.get_points(), 3])
+        self.R = np.zeros([self.get_spatial_points(), 3])
         
-        r_gap = (0.5 * self.get_unit_cell_length()) / self.get_unit_cell_divisions()
-        r_max = self.get_unit_cell_divisions() * r_gap
-        r_min = (-1) * r_max
-        r_array = np.linspace(r_min, r_max, self.get_n_linspace_length())
+        dr = self.get_unit_cell_length() / self.get_spatial_divisions()
         
         idx = 0
-        for z in r_array:
-            for y in r_array:
-                for x in r_array:
-                    self.set_R(idx, x, y, z)
+        points = self.get_spatial_divisions()
+        x0 = (-0.5) * (self.get_unit_cell_length() - dr)
+        y0 = (-0.5) * (self.get_unit_cell_length() - dr)
+        z0 = (-0.5) * (self.get_unit_cell_length() - dr)
+        for z in range(points):
+            for y in range(points):
+                for x in range(points):
+                    self.set_R(idx, (x0 + x*dr), (y0 + y*dr), (z0 + z*dr))
                     idx += 1
         
         return
     
     def build_wave_vector_G(self):
-        self.G = np.zeros([self.get_points(), 3])
+        self.G = np.zeros([self.get_reciprocal_points(), 3])
         
         n_array = self.get_n_linspace()
         angular_frequency = (2 * np.pi) / self.get_unit_cell_length()
@@ -103,8 +114,9 @@ class PeriodicPoreArray():
         return
     
     def build_characteristic_spatial_pore_function_array(self):
-        self.theta_Pr = np.zeros(self.get_points())
-        n_points = self.get_points()
+        self.theta_Pr = np.zeros(self.get_spatial_points())
+
+        n_points = self.get_spatial_points()
         for idx in range(n_points):
             coord_x = self.get_R(idx, 0)
             coord_y = self.get_R(idx, 1)
@@ -122,8 +134,9 @@ class PeriodicPoreArray():
             return False
     
     def build_characteristic_spatial_matrix_function_array(self):
-        self.theta_Mr = np.zeros(self.get_points())
-        n_points = self.get_points()
+        self.theta_Mr = np.zeros(self.get_spatial_points())
+
+        n_points = self.get_spatial_points()
         for idx in range(n_points):
             coord_x = self.get_R(idx, 0)
             coord_y = self.get_R(idx, 1)
@@ -141,24 +154,29 @@ class PeriodicPoreArray():
             return True    
         
     def build_characteristic_reciprocal_pore_function_matrix(self):
-        self.theta_Pg = np.asmatrix(np.zeros([self.get_points(), self.get_points()], dtype=complex))
+        self.theta_Pg = np.asmatrix(np.zeros([self.get_reciprocal_points(), self.get_reciprocal_points()]))
 
-        for row in range(self.get_points()):
-            print("Theta_Pg:: building row", row)
-            for col in range(row, self.get_points()):
+        rows = self.get_reciprocal_points()
+        cols = self.get_reciprocal_points()
+        for row in range(rows):
+            print("Theta_Pg:: building row", row, "out of", rows)
+            for col in range(row, cols):
                 Gresult = self.get_G(row) - self.get_G(col)
-                new_theta_Pg = self.get_characteristic_reciprocal_pore_function(Gresult)
+                # new_theta_Pg = self.get_characteristic_reciprocal_pore_function(Gresult)
+                new_theta_Pg = self.get_characteristic_reciprocal_pore_function(row, col)
                 self.set_theta_Pg(row, col, new_theta_Pg)
                 self.set_theta_Pg(col, row, new_theta_Pg) 
 
         return
     
     def build_characteristic_reciprocal_matrix_function_matrix(self):
-        self.theta_Mg = np.asmatrix(np.zeros([self.get_points(), self.get_points()], dtype=complex))
+        self.theta_Mg = np.asmatrix(np.zeros([self.get_reciprocal_points(), self.get_reciprocal_points()]))
 
-        for row in range(self.get_points()):
-            print("Theta_Mg:: building row", row)
-            for col in range(row, self.get_points()):
+        rows = self.get_reciprocal_points()
+        cols = self.get_reciprocal_points()
+        for row in range(rows):
+            print("Theta_Mg:: building row", row, "out of", rows)
+            for col in range(row, cols):
                 Gresult = self.get_G(row) - self.get_G(col)
                 new_theta_Mg = self.get_characteristic_reciprocal_matrix_function(Gresult)
                 self.set_theta_Mg(row, col, new_theta_Mg)
@@ -182,12 +200,12 @@ class PeriodicPoreArray():
     def _get_characteristic_reciprocal_matrix_function_by_integration_(self, _wavevector: np.ndarray):
         # compute theta_Mg -- characteristic matrix function in the reciprocal lattice vector domain 
         theta_Mg = 0.0
-        dV = self.get_unit_cell_volume() / self.get_points()
-        for idx in range(self.get_points()):
+        dV = self.get_unit_cell_volume() / self.get_spatial_points()
+        for idx in range(self.get_spatial_points()):
             theta_Mg += dV * self.get_theta_Mr(idx) * np.exp(-1j * np.dot(_wavevector, self.get_R(idx)))
         theta_Mg /= self.get_unit_cell_volume()
         
-        return theta_Mg
+        return np.real(theta_Mg)
 
     def _get_characteristic_reciprocal_matrix_function_by_identity_(self, _row: int, _col: int):
         # compute theta_Pg -- characteristic pore function in the reciprocal lattice vector domain
@@ -195,18 +213,18 @@ class PeriodicPoreArray():
         if(_row == _col):
             theta_Mg += 1.0       
 
-        return theta_Mg    
+        return np.real(theta_Mg)    
     
     def _get_characteristic_reciprocal_pore_function_by_integration_(self, _wavevector: np.ndarray):
         # compute theta_Mg -- characteristic matrix function in the reciprocal lattice vector domain 
         theta_Pg = 0.0
         
-        dV = self.get_unit_cell_volume() / self.get_points()
-        for idx in range(self.get_points()):
+        dV = self.get_unit_cell_volume() / self.get_spatial_points()
+        for idx in range(self.get_spatial_points()):
             theta_Pg += dV * self.get_theta_Pr(idx) * np.exp(-1j * np.dot(_wavevector, self.get_R(idx)))
         theta_Pg /= self.get_unit_cell_volume()
         
-        return theta_Pg
+        return np.real(theta_Pg)
 
     def _get_characteristic_reciprocal_pore_function_by_identity_(self, _row: int, _col: int):
         # compute theta_Pg -- characteristic pore function in the reciprocal lattice vector domain
@@ -214,7 +232,7 @@ class PeriodicPoreArray():
         if(_row == _col):
             theta_Pg += 1.0       
 
-        return theta_Pg    
+        return np.real(theta_Pg)    
 
     # -- Solve
     def solve(self, _k):
@@ -230,42 +248,70 @@ class PeriodicPoreArray():
         self.set_wavevector_q()
         return
 
-    def build_matrices(self):
-        # - Reinitialize matrices
-        self.Tgg = np.asmatrix(np.zeros([self.get_points(), self.get_points()], dtype=complex))
-        self.Wgg = np.asmatrix(np.zeros([self.get_points(), self.get_points()], dtype=complex))
-        self.invW = np.asmatrix(np.zeros([self.get_points(), self.get_points()], dtype=complex))
-        self.invWxT = np.asmatrix(np.zeros([self.get_points(), self.get_points()], dtype=complex))        
-        
+    def build_matrices(self):        
         # - Build Wgg matrix 
-        for gRow in range(self.get_points()):
-            print("Wgg matrix:: building row ", gRow)
-            for gCol in range(gRow, self.get_points()):
-                # - Wgg matrix entry and its symmetric opposite twin
-                Wvalue = (-1) * self.get_omega() * self.get_theta_Mg(gRow, gCol)
-                if(gRow == gCol):
-                    Wvalue += 1.0
-                self.set_Wgg(Wvalue, gRow, gCol)
-                self.set_Wgg(Wvalue, gCol, gRow)
+        self.build_matrix_Wgg()
 
         # - Build Tgg matrix
-        for gRow in range(self.get_points()):
-            print("Tgg matrix:: building row ", gRow)
-            for gCol in range(gRow, self.get_points()):
+        self.build_matrix_Tgg()
+                
+        # - Get inverse of Wgg matrix (i.e, Wgg^{-1})
+        print("inverting matrix W...")
+        self.build_matrix_invW()
+
+        # - Get product of inv(Wgg) * Tgg
+        print("multiplying matrices inv(W) x T...")
+        self.build_matrix_invWxt()
+        return
+    
+    def build_matrix_Tgg(self):
+        # - Reinitialize matrix
+        self.Tgg = np.asmatrix(np.zeros([self.get_reciprocal_points(), self.get_reciprocal_points()]))
+
+        # - Build Tgg matrix
+        rows = self.get_reciprocal_points()
+        cols = rows
+        for gRow in range(rows):
+            print("Tgg matrix:: building row ", gRow, "out of", rows)
+            for gCol in range(gRow, cols):
                 # - Tgg matrix entry and its symmetric opposite twin
                 Tvalue_a = self.get_fluid_diffusion_coefficient() * (self.get_G(gRow) + self.get_wavevector_q()) 
                 Tvalue_b = self.get_theta_Pg(gRow, gCol) * (self.get_G(gCol) + self.get_wavevector_q())
                 Tvalue = np.dot(Tvalue_a, Tvalue_b)
                 self.set_Tgg(Tvalue, gRow, gCol)
                 self.set_Tgg(Tvalue, gCol, gRow)
-                
-        # - Get inverse of Wgg matrix (i.e, Wgg^{-1})
-        print("inverting matrix W...")
-        self.set_invW()
+        return
+    
+    def build_matrix_Wgg(self):
+        # - Reinitialize matrix
+        self.Wgg = np.asmatrix(np.zeros([self.get_reciprocal_points(), self.get_reciprocal_points()]))
+        
+        # - Build Wgg matrix 
+        rows = self.get_reciprocal_points()
+        cols = rows
+        for gRow in range(rows):
+            print("Wgg matrix:: building row", gRow, "out of", rows)
+            for gCol in range(gRow, cols):
+                # - Wgg matrix entry and its symmetric opposite twin
+                Wvalue = (-1) * self.get_omega() * self.get_theta_Mg(gRow, gCol)
+                if(gRow == gCol):
+                    Wvalue += 1.0
+                self.set_Wgg(Wvalue, gRow, gCol)
+                self.set_Wgg(Wvalue, gCol, gRow)
+        return    
 
-        # - Get product of inv(Wgg) * Tgg
-        print("multiplying matrices inv(W) x T...")
-        self.set_invWxT()
+    def build_matrix_invW(self):
+        # - Reinitialize matrix
+        self.invW = np.asmatrix(np.zeros([self.get_points(), self.get_points()]))
+        
+        self.set_invW(np.linalg.inv(self.get_Wgg()))
+        return
+    
+    def build_matrix_invWxt(self):
+        # - Reinitialize matrix
+        self.invWxT = np.asmatrix(np.zeros([self.get_points(), self.get_points()]))        
+        
+        self.set_invWxT(self.get_invW() * self.get_Tgg())
         return
     
     def solve_eigenvalues(self):
@@ -283,9 +329,17 @@ class PeriodicPoreArray():
     
     def build_eigenstates(self):
         # Reinitialize array
-        self.eigen_states = np.zeros(self.get_points(), dtype=complex)
+        self.eigen_states = np.zeros(self.get_reciprocal_points(), dtype=complex)
 
-        ''' -- code here -- '''
+        row = self.get_gk_index()
+        indexes = self.get_reciprocal_points()
+        cols = self.get_reciprocal_points()
+        for n in range(indexes):
+            eigenstate = 0.0
+            for col in range(cols):
+                eigenstate += self.get_theta_Pg(row, col) * self.get_eigenvector_coord(n, col) 
+            
+            self.set_eigenstate(n, eigenstate)
         return
 
     # -- set and get methods
@@ -374,6 +428,36 @@ class PeriodicPoreArray():
 
     def get_points(self):
         return self._points
+    
+    def set_spatial_divisions(self, _value):
+        self.spatial_divisions = _value
+        self.set_essentials(False)
+        return
+    
+    def get_spatial_divisions(self):
+        return self.spatial_divisions
+    
+    def set_spatial_points(self):
+        self.spatial_points = self.get_spatial_divisions()**3
+        return
+    
+    def get_spatial_points(self):
+        return self.spatial_points
+    
+    def set_reciprocal_divisions(self, _value):
+        self.reciprocal_divisions = _value
+        self.set_essentials(False)
+        return
+    
+    def get_reciprocal_divisions(self):
+        return self.reciprocal_divisions
+    
+    def set_reciprocal_points(self):
+        self.reciprocal_points = (2*self.get_reciprocal_divisions() + 1)**3
+        return
+    
+    def get_reciprocal_points(self):
+        return self.reciprocal_points
 
     def set_R(self, index, x, y, z):
         self.R[index, 0] = x
@@ -463,12 +547,20 @@ class PeriodicPoreArray():
                 gk_index = idx
                 minor_distance = new_distance
         
+        self.set_gk_index(gk_index)
         self.wavevector_gk = self.get_G(gk_index)
-        print("gk = {}, \tidx = {}, \tdistance = {}".format(self.get_wavevector_gk(), gk_index, minor_distance))
+        print("gk = {}, \tidx = {}, \tdistance = {}".format(self.get_wavevector_gk(), self.get_gk_index(), minor_distance))
         return
     
     def get_wavevector_gk(self):
         return self.wavevector_gk
+    
+    def set_gk_index(self, _index):
+        self.gk_index = _index
+        return
+    
+    def get_gk_index(self):
+        return self.gk_index
     
     def set_wavevector_q(self):
         self.wavevector_q = self.get_wavevector_k() - self.get_wavevector_gk()
@@ -497,8 +589,8 @@ class PeriodicPoreArray():
         else:
             return self.Wgg[row, column]
     
-    def set_invW(self):
-        self.invW = np.linalg.inv(self.get_Wgg())
+    def set_invW(self, _invW):
+        self.invW = _invW
         return
     
     def get_invW(self, row=None, column=None):
@@ -507,8 +599,8 @@ class PeriodicPoreArray():
         else:
             return self.invW[row, column]
     
-    def set_invWxT(self):
-        self.invWxT = self.get_invW() * self.get_Tgg()
+    def set_invWxT(self, _invWxt):
+        self.invWxT = _invWxt
         return
     
     def get_invWxT(self, row=None, column=None):
@@ -537,6 +629,19 @@ class PeriodicPoreArray():
     def get_eigenvector(self, index):
         return self.eigen_vectors[index]
     
+    def get_eigenvector_coord(self, index, coord):
+        return self.eigen_vectors[index, coord]
+    
+    def set_eigenstate(self, _index, _eigenstate):
+        self.eigen_states[_index] = _eigenstate
+        return
+    
+    def get_eigenstates(self):
+        return self.eigen_states
+    
+    def get_eigenstate(self, index):
+        return self.eigen_states[index]
+    
     # -- Datavis for debug
     def dataviz_theta(self):
         fig = plt.figure(figsize=plt.figaspect(1.0), dpi=100)
@@ -548,7 +653,7 @@ class PeriodicPoreArray():
         data_x = [] 
         data_y = [] 
         data_z = [] 
-        n_points = self.get_points()
+        n_points = self.get_spatial_points()
         for idx in range(n_points):
             if(self.get_theta_Mr(idx) == 1):
                 point = self.get_R(idx)
