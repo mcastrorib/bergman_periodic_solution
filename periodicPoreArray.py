@@ -145,9 +145,11 @@ class PeriodicPoreArray():
 
         for row in range(self.get_points()):
             print("Theta_Pg:: building row", row)
-            for col in range(self.get_points()):
-                new_theta_Pg = self.get_characteristic_reciprocal_pore_function(row, col)
+            for col in range(row, self.get_points()):
+                Gresult = self.get_G(row) - self.get_G(col)
+                new_theta_Pg = self.get_characteristic_reciprocal_pore_function(Gresult)
                 self.set_theta_Pg(row, col, new_theta_Pg)
+                self.set_theta_Pg(col, row, new_theta_Pg) 
 
         return
     
@@ -163,11 +165,23 @@ class PeriodicPoreArray():
                 self.set_theta_Mg(col, row, new_theta_Mg)               
         
         return
+
+    def get_characteristic_reciprocal_matrix_function(self, _input1, _input2=None):
+        if(type(_input1) == np.ndarray):
+            return self._get_characteristic_reciprocal_matrix_function_by_integration_(_input1)
+        elif(type(_input1) == int and type(_input2) == int):
+            return self._get_characteristic_reciprocal_matrix_function_by_identity_(_input1, _input2)
+
     
-    def get_characteristic_reciprocal_matrix_function(self, _wavevector):
-        # first, compute theta_Mg -- characteristic matrix function in the reciprocal lattice vector domain 
+    def get_characteristic_reciprocal_pore_function(self, _input1, _input2=None):
+        if(type(_input1) == np.ndarray):
+            return self._get_characteristic_reciprocal_pore_function_by_integration_(_input1)
+        elif(type(_input1) == int and type(_input2) == int):
+            return self._get_characteristic_reciprocal_pore_function_by_identity_(_input1, _input2)
+    
+    def _get_characteristic_reciprocal_matrix_function_by_integration_(self, _wavevector: np.ndarray):
+        # compute theta_Mg -- characteristic matrix function in the reciprocal lattice vector domain 
         theta_Mg = 0.0
-        
         dV = self.get_unit_cell_volume() / self.get_points()
         for idx in range(self.get_points()):
             theta_Mg += dV * self.get_theta_Mr(idx) * np.exp(-1j * np.dot(_wavevector, self.get_R(idx)))
@@ -175,13 +189,32 @@ class PeriodicPoreArray():
         
         return theta_Mg
 
-    def get_characteristic_reciprocal_pore_function(self, _row, _col):
-        # last, compute theta_Pg -- characteristic pore function in the reciprocal lattice vector domain
-        theta_Pg = (-1) * self.theta_Mg[_row, _col]
-        G = self.get_G(_row)
-        if(_row == _col and G[0] == 0.0 and G[1] == 0.0 and G[2] == 0.0):
-            theta_Pg += 1.0
+    def _get_characteristic_reciprocal_matrix_function_by_identity_(self, _row: int, _col: int):
+        # compute theta_Pg -- characteristic pore function in the reciprocal lattice vector domain
+        theta_Mg = (-1) * self.theta_Pg[_row, _col]
+        if(_row == _col):
+            theta_Mg += 1.0       
+
+        return theta_Mg    
+    
+    def _get_characteristic_reciprocal_pore_function_by_integration_(self, _wavevector: np.ndarray):
+        # compute theta_Mg -- characteristic matrix function in the reciprocal lattice vector domain 
+        theta_Pg = 0.0
+        
+        dV = self.get_unit_cell_volume() / self.get_points()
+        for idx in range(self.get_points()):
+            theta_Pg += dV * self.get_theta_Pr(idx) * np.exp(-1j * np.dot(_wavevector, self.get_R(idx)))
+        theta_Pg /= self.get_unit_cell_volume()
+        
         return theta_Pg
+
+    def _get_characteristic_reciprocal_pore_function_by_identity_(self, _row: int, _col: int):
+        # compute theta_Pg -- characteristic pore function in the reciprocal lattice vector domain
+        theta_Pg = (-1) * self.theta_Mg[_row, _col]
+        if(_row == _col):
+            theta_Pg += 1.0       
+
+        return theta_Pg    
 
     # -- Solve
     def solve(self, _k):
