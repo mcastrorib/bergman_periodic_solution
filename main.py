@@ -7,9 +7,9 @@ if __name__ == "__main__":
     # -- [LENGTH]   => um
     # -- [TIME]     => ms
     unit_cell_length = 10.0
-    unit_cell_divisions = 1
+    unit_cell_divisions = 4
     unit_cell_spatial_divisions = 10
-    unit_cell_reciprocal_divisions = 2
+    unit_cell_reciprocal_divisions = unit_cell_divisions
     grain_radius = 5.0
     D_p = 2.5
 
@@ -24,18 +24,13 @@ if __name__ == "__main__":
     lattice.build()
  
     # Solve
-    wavevector_K = np.array([0.0, 0.0, 0.0])
-    lattice.solve(wavevector_K)
+    time = 10 *(unit_cell_length**2 / D_p) # time is in miliseconds
+    K = np.array([1.0, 0.0, 0.0])
+    lattice.set_k_points(50)
+    lattice.set_ka_max(15.0)
+    lattice.solve(K, time)
 
     # Visualize data
-    lattice.dataviz_theta()
+    # lattice.dataviz_theta()
+    lattice.dataviz_Mkt()
         
-    # Debug
-    theta_diff = np.asmatrix(np.zeros([lattice.get_points(), lattice.get_points()]))
-    for row in range(lattice.get_points()):
-        for col in range(lattice.get_points()):
-            theta_diff[row, col] = lattice.theta_Mg[row, col] + lattice.theta_Pg[row, col]
-    
-    print("theta_Mg + theta_Pg = ")
-    for row in range(lattice.get_points()):
-        print(theta_diff[row])
