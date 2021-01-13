@@ -30,9 +30,9 @@ Length = 10.0
 A = (-0.5) * Length
 B = (0.5) * Length
 Radius = 2.5
-Points = 10
-N = 5
-freq = N * (2.0 * np.pi) / Length
+Points = 50
+N = 10
+freq = 1 * (2.0 * np.pi) / Length
 
 # Get Gauss quadrature points
 gp, gw = get_gauss_points_and_weights(Points)
@@ -84,7 +84,7 @@ xi = np.linspace(A, B, 1000)
 dx = xi[1] - xi[0]
 Fxi = np.zeros(1000)
 for i in range(1000):
-    Fxi[i] = func(xi[i], Radius)  * np.cos(freq * xi[i])
+    Fxi[i] = func3(xi[i], Radius, freq)
 
 plt.plot(xi, Fxi)
 plt.grid(b=True, which='major', color='#666666', linestyle='-', alpha=0.5)

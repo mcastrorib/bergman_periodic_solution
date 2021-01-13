@@ -59,6 +59,7 @@ class PeriodicPoreArray():
         self.eigen_vectors = np.asmatrix(np.zeros([self.get_reciprocal_points(),self.get_reciprocal_points()], dtype=complex)) 
         self.eigen_states = np.zeros(self.get_reciprocal_points(), dtype=complex)
         self.Mkt = np.zeros(self.get_reciprocal_points(), dtype=complex)
+        self.Dt = 0.0
         
         return
     
@@ -243,28 +244,59 @@ class PeriodicPoreArray():
         return np.real(theta_Pg)    
 
     # -- Solve
+    def solve_Dt(self, _M0t, _k, _time):
+        knorm = np.linalg.norm(_k)
+        M0t = np.real(_M0t)
+        print("------------------------------------------------")
+        print("M(0,t) =", M0t, "\t k =", knorm, "\t t =", _time)
+        print("ln(M(0,t) = ", np.log(M0t))
+        print("Dp x k² x t = ", (self.get_fluid_diffusion_coefficient() * knorm * knorm * _time))
+        print("------------------------------------------------")
+        Dt = ((-1.0) * np.log(M0t)) / (self.get_fluid_diffusion_coefficient() * knorm * knorm * _time)
+        self.set_Dt(Dt)
+        return
+    
+    def set_Dt(self, _value):
+        self.Dt = _value
+        return
+    
+    def get_Dt(self):
+        return self.Dt
+
     def solve(self, _k, _time):
         self.set_wavevector_k(_k)
         self.build_Mkt()
         
+        # - Build Wgg matrix and invert Wgg matrix (i.e, Wgg^{-1})
+        self.build_matrix_Wgg()
+        self.build_matrix_invW()
+
         for k_idx in range(self.get_k_points()):
-            print("-- K index: ", k_idx)
+            if(self._verbose):
+                print("-- K index: ", k_idx)
             self.build_reciprocal_lattice_vectors(k_idx)
-            self.build_matrices()
+            
+            # - Build Tgg matrix and get product of inv(Wgg) * Tgg
+            self.build_matrix_Tgg()
+            self.build_matrix_invWxT()
+            
             self.solve_eigenvalues()
             self.build_eigenstates()
             self.solve_Mkt(k_idx, _time)
-            self.normalize_Mkt()
         
+        # self.normalize_Mkt()        
         return
     
     def build_reciprocal_lattice_vectors(self, _kIdx):
         self.set_k_index(_kIdx)
-        print("k =\t {}".format(self.get_wavevector_k(self.get_k_index())))
+        if(self._verbose):
+                print("k =\t {}".format(self.get_wavevector_k(self.get_k_index())))
         self.set_wavevector_gk()
-        print("gk =\t {} index = {}".format(self.get_wavevector_gk(), self.get_gk_index()))
+        if(self._verbose):
+                print("gk =\t {} index = {}".format(self.get_wavevector_gk(), self.get_gk_index()))
         self.set_wavevector_q()
-        print("q =\t {} \n".format(self.get_wavevector_q()))
+        if(self._verbose):
+                print("q =\t {} \n".format(self.get_wavevector_q()))
         return
 
     def build_matrices(self):        
@@ -324,6 +356,9 @@ class PeriodicPoreArray():
         return    
 
     def build_matrix_invW(self):
+        if(self._verbose):
+                print("inverting matrix W...")
+        
         # - Reinitialize matrix
         self.invW = np.asmatrix(np.zeros([self.get_reciprocal_points(), self.get_reciprocal_points()]))
         
@@ -331,6 +366,9 @@ class PeriodicPoreArray():
         return
     
     def build_matrix_invWxT(self):
+        if(self._verbose):
+                    print("multiplying matrices inv(W) x T...")
+
         # - Reinitialize matrix
         self.invWxT = np.asmatrix(np.zeros([self.get_reciprocal_points(), self.get_reciprocal_points()]))        
         
@@ -362,7 +400,6 @@ class PeriodicPoreArray():
         self.eigen_states = np.zeros(self.get_reciprocal_points(), dtype=complex)
 
         row = self.get_gk_index()
-        print(row)
         indexes = self.get_reciprocal_points()
         cols = self.get_reciprocal_points()
         for n in range(indexes):
@@ -393,7 +430,6 @@ class PeriodicPoreArray():
             self.set_Mkt(idx, normalized_Mkt)
         
         return
-
 
     # -- set and get methods
     def set_essentials(self, _bvalue):
@@ -779,7 +815,7 @@ class PeriodicPoreArray():
         plt.show()
         return
 
-    def dataviz_Mkt(self):
+    def dataviz_Mkt(self, title=''):
         # Points (s=point_size, c=color, cmap=colormap)
         n_points = self.get_k_points()
         
@@ -790,22 +826,69 @@ class PeriodicPoreArray():
         data_y = [] 
         for idx in range(n_points):
             data_y.append(np.real(self.get_Mkt(idx)))       
-                
+        
+        fig = plt.figure(figsize=(6,6), dpi=100)
         plt.semilogy(data_x, data_y, '-o')
-        plt.title("")
+        plt.axvline(x=np.pi, color="black", linewidth=0.5)
+        plt.axvline(x=3*np.pi, color="black", linewidth=0.5)
+        plt.axvline(x=5*np.pi, color="black", linewidth=0.5)
+
+        plt.title(title)
         plt.xlabel(r'$ |k|a $')
         plt.ylabel(r'$ M(k,t) $')
 
         # Show the major grid lines with dark grey lines
-        plt.grid(b=True, which='major', color='#666666', linestyle='-', alpha=0.5)
+        # plt.grid(b=True, which='major', color='#666666', linestyle='-', alpha=0.5)
 
         # Show the minor grid lines with very faint and almost transparent grey lines
-        plt.minorticks_on()
-        plt.grid(b=True, which='minor', color='#999999', linestyle='--', alpha=0.2)
+        # plt.minorticks_on()
+        # plt.grid(b=True, which='minor', color='#999999', linestyle='--', alpha=0.2)
 
         # Set plot axes limits
-        plt.xlim(0.0, 1.05*data_x[-1])
-        # plt.ylim()
+        plt.xlim(0.0, 20.0)
+        plt.ylim(1.0e-05, data_y[0])
+        plt.show()
+        return
+    
+    def dataviz_Mkts(self, data_y, labels, title=""):
+        # Points (s=point_size, c=color, cmap=colormap)
+        data_size = len(data_y)
+        n_points = self.get_k_points()
+        
+        data_x = [] 
+        for idx in range(n_points):
+            data_x.append(np.linalg.norm(self.get_wavevector_k(idx)) * self.get_unit_cell_length()) 
+         
+        fig = plt.figure(figsize=(8,9), dpi=100)
+        for idx in range(data_size):
+            plt.semilogy(data_x, data_y[idx], '-o', label=labels[idx])        
+        plt.axvline(x=np.pi, color="black", linewidth=0.5)
+        plt.axvline(x=3*np.pi, color="black", linewidth=0.5)
+        plt.axvline(x=5*np.pi, color="black", linewidth=0.5)
+            
+        plt.title(title)
+        plt.legend(loc='upper right')
+        plt.xlabel(r'$ |k|a $')
+        plt.ylabel(r'$ M(k,t) $')
+
+        # Set plot axes limits
+        plt.xlim(0.0, 20.0)
+        plt.ylim(1.0e-05, 1.0)
+        plt.show()
+        return
+    
+    def dataviz_Dts(self, Dts, times, title=""):
+        # Points (s=point_size, c=color, cmap=colormap)
+        data_size = len(Dts)
+        # fig = plt.figure(figsize=(8,9), dpi=100)
+        plt.plot(times, Dts, '-')        
+        plt.title(title)
+        plt.xlabel(r'$ Time (milisec) $')
+        plt.ylabel(r'$ D(t)/D_p $')
+
+        # Set plot axes limits
+        # plt.xlim(0.0, 100.0)
+        # plt.ylim(0.7, 0.8)
         plt.show()
         return
 
