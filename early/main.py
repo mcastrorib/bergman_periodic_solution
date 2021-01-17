@@ -9,7 +9,7 @@ if __name__ == "__main__":
     # -- [TIME]     => ms
     unit_cell_length = 10.0
     unit_cell_divisions = 1
-    unit_cell_spatial_divisions = 16
+    unit_cell_spatial_divisions = 5
     unit_cell_reciprocal_divisions = unit_cell_divisions
     grain_radius = 5.0
     D_p = 2.5
