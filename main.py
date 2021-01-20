@@ -125,6 +125,7 @@ R = 5.0
 N = int(1)
 w = 0.9999
 u = 1.0
+
 k_direction = np.array([1,0,0])
 ka_max = 0.1
 k_points = 5
@@ -232,42 +233,51 @@ for k in range(dpoints):
             matrix_dr[i,j,k] = matrix_function(px, py, pz, R)
 
 # Apply FFT-3D to characteristic signal
-pore_dg = apply_fft(pore_dr)
-pore_dg = norm_factor * (1.0/volume) * pore_dg
-matrix_dg = apply_fft(matrix_dr)
-matrix_dg = norm_factor * (1.0/volume) * matrix_dg
+# pore_dg = apply_fft(pore_dr)
+# pore_dg = norm_factor * (1.0/volume) * pore_dg
+# matrix_dg = apply_fft(matrix_dr)
+# matrix_dg = norm_factor * (1.0/volume) * matrix_dg
 
-pore_dg2 = apply_dft(pore_dr, dr, dg, volume, dpoints)
-matrix_dg2 = apply_identity(pore_dg2, dpoints)
+pore_dg = apply_dft(pore_dr, dr, dg, volume, dpoints)
+matrix_dg = apply_identity(pore_dg, dpoints)
 
 # Assembly matrices
 rows = points**3
 cols = rows
-Wdg = np.asmatrix(np.zeros([rows, cols], dtype=complex))
-Udg = np.asmatrix(np.zeros([rows, cols], dtype=complex))
-Tdg = np.asmatrix(np.zeros([rows, cols], dtype=complex))
+matW = np.asmatrix(np.zeros([rows, cols], dtype=complex))
+matU = np.asmatrix(np.zeros([rows, cols], dtype=complex))
+matT = np.asmatrix(np.zeros([rows, cols], dtype=complex))
+matR = np.asmatrix(np.zeros([rows, cols], dtype=complex))
+matRinv = np.asmatrix(np.zeros([rows, cols], dtype=complex))
+matRH = np.asmatrix(np.zeros([rows, cols], dtype=complex))
+matRHinv = np.asmatrix(np.zeros([rows, cols], dtype=complex))
 
 # W matrix
 for k in range(points):
     for i in range(points):
         for j in range(points):
             row_index = IDX2C_3D(i, j, k, points)
+            print(":: Matrix_W row {} out of {}.".format(row_index, rows))
             
             for kk in range(points):
-                for jj in range(points):
-                    for ii in range(points):
+                for ii in range(points):
+                    for jj in range(points):
                         col_index = IDX2C_3D(ii, jj, kk, points)
+                        # print(":: :: col {} out of {}.".format(col_index, cols))
+
                         di = map_g_to_dg(i,ii,N)
                         dj = map_g_to_dg(j,jj,N)
                         dk = map_g_to_dg(k,kk,N)
-                        Wdg[row_index, col_index] = (-1.0) * w * matrix_dg2[di, dj, dk]
+                        matW[row_index, col_index] = (-1.0) * w * matrix_dg[di, dj, dk]
 
 for row in range(rows):
-    Wdg[row, row] += 1.0
+    matW[row, row] += 1.0
 
 # Get cholesky decomposition R matrix
-R = np.linalg.cholesky(Wdg)
-Rinv = np.linalg.inv(R)
+matRH = np.linalg.cholesky(matW)
+matRHinv = np.linalg.inv(matRH)
+matR = matRH.H
+matRinv = np.linalg.inv(matR)
 
 # U matrix
 for k in range(points):
@@ -282,17 +292,17 @@ for k in range(points):
                         di = map_g_to_dg(i,ii,N)
                         dj = map_g_to_dg(j,jj,N)
                         dk = map_g_to_dg(k,kk,N)
-                        Udg[row_index, col_index] = (-1.0) * w * matrix_dg2[di, dj, dk]
+                        matU[row_index, col_index] = (-1.0) * u * matrix_dg[di, dj, dk]
 
 for row in range(rows):
-    Udg[row, row] += 1.0
+    matU[row, row] += 1.0
                         
 # Solve for q
 # for q in q_array:
-kvec = k_array[0]
+kvec = np.array([0.0, 0.0, 0.0])
 
 # Find gk in reciprocal lattice
-gkvec, gkvec_index = find_gk(kvec, g, points)
+gkvec, gk_index = find_gk(kvec, g, points)
 qvec = kvec - gkvec
 
 # T matrix
@@ -305,15 +315,31 @@ for k in range(points):
                 for ii in range(points):
                     for jj in range(points):
                         col_index = IDX2C_3D(ii, jj, kk, points)
-                        Tdg[row_index, col_index] = np.dot((qvec + g[i,j,k]), (qvec + g[ii,jj,kk])) * Udg[row_index, col_index] 
+                        matT[row_index, col_index] = np.dot((qvec + g[i,j,k]), (qvec + g[ii,jj,kk])) * matU[row_index, col_index] 
 
 # V matrix
-Vdg = Rinv.H * Tdg * Rinv
-vals, vecs = np.linalg.eig(Vdg)
+matV = matRinv.H * matT * matRinv
+vals, vecs = np.linalg.eig(matW)
 vec = vecs.transpose()
 # Sort eigen values and its vector
 inds = np.argsort(vals)
 vals = vals[inds]
 vecs = vecs[inds] 
-weights = (1.0/w) * (R.H - ((1-w) * Rinv)) * (vecs)
-    
+weights = (1.0/w) * (matRH - ((1-w) * matRinv)) * (vecs)
+
+# M(k,t)
+time = 10.0
+Mkt = 0.0
+Mkt_sum = 0.0
+for n in range(points**3):
+    Mkt_sum += np.exp((-1.0) * vals[n] * time) * (np.abs(weights[gk_index, n]))**2
+Mkt = (1.0 / porosity) * Mkt_sum
+
+quantity = np.zeros(rows, dtype=complex)
+matAux = np.asmatrix(np.zeros([rows, cols], dtype=complex))
+for n in range(vals.shape[-1]):
+    matAux = (matR * matRH)
+    value = ((vecs[n] * matAux) * vecs[n].H)
+    quantity[n] = value[0,0]
+
+reduced_vals = (a**2 / D_p) * vals
