@@ -3,7 +3,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 import scipy as sp
 
-def dataviz_Mkt(Mkt, k, a, labels, title=''):
+def dataviz_Mkt(Mkt, k, a, labels, diag=1.0 ,title=''):
         # Points (s=point_size, c=color, cmap=colormap)
         times = len(Mkt)
         data_size = len(Mkt[0])
@@ -15,9 +15,9 @@ def dataviz_Mkt(Mkt, k, a, labels, title=''):
         fig = plt.figure(figsize=(8,9), dpi=100)
         for idx in range(times):
             plt.semilogy(ka, Mkt[idx], '-o', label=labels[idx] + " ms")        
-        plt.axvline(x=np.pi, color="black", linewidth=0.5)
-        plt.axvline(x=3*np.pi, color="black", linewidth=0.5)
-        plt.axvline(x=5*np.pi, color="black", linewidth=0.5)
+        plt.axvline(x=diag*np.pi, color="black", linewidth=0.5)
+        plt.axvline(x=diag*3*np.pi, color="black", linewidth=0.5)
+        plt.axvline(x=diag*5*np.pi, color="black", linewidth=0.5)
             
         plt.title(title)
         plt.legend(loc='upper right')
@@ -26,7 +26,24 @@ def dataviz_Mkt(Mkt, k, a, labels, title=''):
 
         # Set plot axes limits
         plt.xlim(ka[0], 1.25*ka[-1])
-        plt.ylim(1.0e-07, 1.0)
+        # plt.ylim(1.0e-07, 1.0)
+        plt.show()
+        return
+
+def dataviz_Dt(Dt, time, title=''):
+        # Points (s=point_size, c=color, cmap=colormap)
+         
+        fig = plt.figure(figsize=(8,9), dpi=100)
+        plt.plot(1e-3*time, Dt)        
+        # plt.axvline(x=np.pi, color="black", linewidth=0.5)
+            
+        plt.title(title)
+        plt.xlabel(r'$ time (sec) $')
+        plt.ylabel(r'$ D(t)/D_{p} $')
+
+        # Set plot axes limits
+        plt.xlim(0.0, 1e-3*time[-1])
+        plt.ylim(0.0,1.2)
         plt.show()
         return
 
@@ -44,6 +61,9 @@ def matrix_function(x,y,z,R):
         return 1.0
     else:
         return 0.0
+
+def set_porosity(a, R):
+    return 1.0 + (np.pi / 4.0) - (3.0 * np.pi * (R/a)**2) + ((8.0 / 3.0 ) * np.pi) * (R/a)**3 
 
 def apply_fft(signal):
     kspec = np.fft.fftn(signal, norm='ortho')
@@ -80,6 +100,7 @@ def apply_identity(ksignal, dpoints):
             for i in range(dpoints):
                 print(":: Matrix_dg {} out of {}.".format(count, elems))
                 new_signal[i,j,k] = (-1.0) * ksignal[i,j,k]
+                count += 1
     
     new_signal[dpoints//2, dpoints//2, dpoints//2] += 1.0
     return new_signal
@@ -139,11 +160,17 @@ def find_gk(kvec, g, points):
                 if(new_distance < distance):
                     distance = new_distance
                     gkvec = g[j, i, k]
-                    gk_index = IDX2C_3D(i, j, k, points)
+                    gk_index = IDX2C_3D(j, i, k, points)
                     # print(gk_index, gkvec, distance)             
     
     return gkvec, gk_index
     
+def Dt_recover(Mkt, k, times, Dp):
+    time_samples = len(times)
+    Dts = np.zeros(time_samples)
+    for t in range(time_samples):
+        Dts[t] = ((-1.0) * np.log(Mkt[t, -1])) / (Dp * times[t] * np.linalg.norm(k)**2)
+    return Dts
 
 
 # Problem parameters
@@ -151,24 +178,29 @@ D_p = 2.5   # in um²/ms
 D_m = 0.0   # in um²/ms
 a = 10.0    # in um
 R = 5.0     # in um
-N = int(5)
+N = int(3)
 w = 0.9999
 u = 1.0
 
 k_direction = np.array([1,0,0])
 ka_max = 5*np.pi
+# ka_max = 0.1
 k_points = 50
 k_array = np.zeros([k_points, 3])
 k_linspace = np.linspace(ka_max/a, 0.0, k_points)
+k_linspace = np.flip(k_linspace)
 for i in range(3):
     k_array[:, i] = k_direction[i] * k_linspace
-k_array = np.flip(k_array)
+# k_array = np.flip(k_array)
 
-times = [0.1, 0.3, 1.0, 3.0, 10.0, 30.0, 60.0, 100.0] # in ms
-Mkt = np.zeros([len(times), k_points]) 
+
+time_samples = 8
+# times = np.logspace(-1,2,time_samples) # in ms
+times = [0.1, 0.3, 1.0, 3.0, 10.0, 30.0, 60.0, 100.0]
+Mkt = np.zeros([time_samples, k_points]) 
 
 volume = a**3
-porosity = 1.0 + (np.pi / 4.0) - (3.0 * np.pi * (R/a)**2) + ((8.0 / 3.0 ) * np.pi) * (R/a)**3 
+porosity = set_porosity(a,R) 
 points = 2*N + 1
 Nrange = np.arange(-N, N+1)
 
@@ -318,16 +350,32 @@ for row in range(rows):
                         
 # Solve for q
 # for q in q_array:
+first_brillouin = (0.5) * g[points//2 + 1, points//2 + 1, points//2 + 1][0]
 for k_index in range(k_points):
     kvec = k_array[k_index]
 
     # Find gk in reciprocal lattice
     gkvec, gk_index = find_gk(kvec, g, points)
+    
+    # Set q vec in first brillouin zone
+    # qvec = np.zeros(3)
+    # for i in range(3):
+    #     value = kvec[i] - gkvec[i]
+    #     if(value > first_brillouin):
+    #         value = value % first_brillouin
+    #     elif(value < (-1.0) * first_brillouin):
+    #         value = np.abs(value % ((-1.0)*first_brillouin))
+    #     qvec[i] = value
     qvec = kvec - gkvec
 
+
+    print("-------------------------")
+    print("k_index = \t", k_index)
     print("k = \t", kvec)
     print("gk = \t", gkvec)
+    print("gk_index = \t", gk_index)
     print("q = \t", qvec)
+    print("-------------------------")
 
     # T matrix
     for k in range(points):
@@ -356,7 +404,7 @@ for k_index in range(k_points):
     weights =  matAux * vecs
 
     # M(k,t)
-    for t_idx in range(len(times)):
+    for t_idx in range(time_samples):
         Mkt_sum = 0.0
         for n in range(points**3):
             Mkt_sum += np.exp((-1.0) * vals[n] * times[t_idx]) * (np.abs(weights[gk_index, n]))**2
@@ -372,7 +420,18 @@ for k_index in range(k_points):
     # reduced_vals = (a**2 / D_p) * vals
     # plt.semilogy(np.real(quantity), np.real(reduced_vals), 'o')
     # plt.xlim([0,1])
+    # plt.xlabel(r'$ (W \phi) ^{2}  $')
+    # plt.ylabel(r'$ Reduced \, eigenvalues $')
     # plt.show()
 
+# Normalize M(k,t):
+normMkt = np.zeros([time_samples, k_points])
+for time in range(time_samples):
+    M0t = Mkt[time, 0]
+    for k in range(k_points):
+        normMkt[time, k] = Mkt[time,k] / M0t
+
 time_labels = [str(time) for time in times]
-dataviz_Mkt(Mkt, k_array, a, time_labels)
+dataviz_Mkt(Mkt, k_array, a, time_labels, np.sqrt(1.0))
+
+# Dts = Dt_recover(Mkt, k_array[-1], times, D_p)
