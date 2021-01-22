@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 import scipy as sp
+from LeastSquaresRegression import LeastSquaresRegression
 
 def dataviz_Mkt(Mkt, k, a, labels, diag=1.0 ,title=''):
         # Points (s=point_size, c=color, cmap=colormap)
@@ -43,7 +44,7 @@ def dataviz_Dt(Dt, time, title=''):
 
         # Set plot axes limits
         plt.xlim(0.0, 1e-3*time[-1])
-        plt.ylim(0.0,1.2)
+        plt.ylim(0.5,1.2)
         plt.show()
         return
 
@@ -165,11 +166,19 @@ def find_gk(kvec, g, points):
     
     return gkvec, gk_index
     
-def Dt_recover(Mkt, k, times, Dp):
+def Dt_recover(Mkt, k, times, Dp, points=10):
     time_samples = len(times)
     Dts = np.zeros(time_samples)
+    ksquare = np.array([np.linalg.norm(k_array[i])**2 for i in range(points)])
+    print(ksquare)
     for t in range(time_samples):
-        Dts[t] = ((-1.0) * np.log(Mkt[t, -1])) / (Dp * times[t] * np.linalg.norm(k)**2)
+        lsa = LeastSquaresRegression()
+        logMkt = (-1.0) * np.log(Mkt[t, 0:points])
+        Dpk2t = Dp * times[t] * ksquare
+        lsa.config(Dpk2t, logMkt, points)
+        lsa.solve()
+        Dts[t] = lsa.get_B()
+        # Dts[t] = ((-1.0) * np.log(Mkt[t, -1])) / (Dp * times[t] * np.linalg.norm(k)**2)
     return Dts
 
 
@@ -178,16 +187,17 @@ D_p = 2.5   # in um²/ms
 D_m = 0.0   # in um²/ms
 a = 10.0    # in um
 R = 5.0     # in um
-N = int(3)
+N = int(5)
 w = 0.9999
 u = 1.0
+spurious_cut = 0.3
 
 k_direction = np.array([1,0,0])
 ka_max = 5*np.pi
 # ka_max = 0.1
 k_points = 50
 k_array = np.zeros([k_points, 3])
-k_linspace = np.linspace(ka_max/a, 0.0, k_points)
+k_linspace = np.linspace(ka_max/a, 0.01, k_points)
 k_linspace = np.flip(k_linspace)
 for i in range(3):
     k_array[:, i] = k_direction[i] * k_linspace
@@ -329,6 +339,7 @@ matRH = np.linalg.cholesky(matW)
 matRHinv = np.linalg.inv(matRH)
 matR = matRH.H
 matRinv = np.linalg.inv(matR)
+matRRH = (matR * matRH)
 
 # U matrix
 for k in range(points):
@@ -350,6 +361,9 @@ for row in range(rows):
                         
 # Solve for q
 # for q in q_array:
+real_spurious = np.zeros([rows, k_points], dtype=complex)    
+vals_q = np.zeros([rows, k_points], dtype=complex)
+weights_q = np.zeros([rows, k_points], dtype=complex)
 first_brillouin = (0.5) * g[points//2 + 1, points//2 + 1, points//2 + 1][0]
 for k_index in range(k_points):
     kvec = k_array[k_index]
@@ -403,19 +417,23 @@ for k_index in range(k_points):
     matAux = (1.0/w) * (matRH - ((1-w) * matRinv))
     weights =  matAux * vecs
 
+    # persistent data
+    for row in range(rows):
+        vals_q[row, k_index] = vals[row]
+        weights_q[row, k_index] = weights[gk_index, row]
+
+    for n in range(rows):
+        value = ((vecs[:,n].H * matRRH) * vecs[:,n])
+        real_spurious[n, k_index] = value[0,0]      
+
     # M(k,t)
     for t_idx in range(time_samples):
         Mkt_sum = 0.0
         for n in range(points**3):
-            Mkt_sum += np.exp((-1.0) * vals[n] * times[t_idx]) * (np.abs(weights[gk_index, n]))**2
+            if(real_spurious[n, k_index] > spurious_cut):
+                Mkt_sum += np.exp((-1.0) * vals[n] * times[t_idx]) * (np.abs(weights[gk_index, n]))**2
         Mkt[t_idx, k_index] = (1.0 / porosity) * np.real(Mkt_sum)
 
-    # quantity = np.zeros(rows, dtype=complex)
-    # matAux = np.asmatrix(np.zeros([rows, cols], dtype=complex))
-    # for n in range(vals.shape[-1]):
-    #     matAux = (matR * matRH)
-    #     value = ((vecs[:,n].H * matAux) * vecs[:,n])
-    #     quantity[n] = value[0,0]
 
     # reduced_vals = (a**2 / D_p) * vals
     # plt.semilogy(np.real(quantity), np.real(reduced_vals), 'o')
@@ -431,7 +449,67 @@ for time in range(time_samples):
     for k in range(k_points):
         normMkt[time, k] = Mkt[time,k] / M0t
 
-time_labels = [str(time) for time in times]
+# Data visualization
+time_labels = np.array([str(time) for time in times])
 dataviz_Mkt(Mkt, k_array, a, time_labels, np.sqrt(1.0))
 
-# Dts = Dt_recover(Mkt, k_array[-1], times, D_p)
+points = 4
+Dts = Dt_recover(normMkt, k_array, times, D_p, points)
+# dataviz_Dt(Dts, times)
+
+# k_sqr = np.array([np.linalg.norm(k_array[i])**2 for i in range(points)])
+# for t in range(time_samples):
+#     plt.semilogy(k_sqr[:points], normMkt[t][:points], '-o')
+# plt.show()
+
+
+values = 20
+low_vals = np.zeros([rows, k_points], dtype=complex)
+low_weights = np.zeros([rows, k_points])
+low_spur = np.zeros([rows, k_points])
+for k in range(k_points):
+    indexes = np.argsort(vals_q[:,k])
+    for val in range(rows):
+        low_vals[val, k] = vals_q[indexes[val], k]
+        low_weights[val, k] = np.abs(weights_q[indexes[val], k])**2
+        low_spur[val, k] = real_spurious[indexes[val], k]
+
+
+true_vals = np.zeros([values, k_points])
+true_weights = np.zeros([values, k_points])
+for k in range(k_points):
+    vals_added = 0
+    row = 0
+    while(vals_added < values and row < rows):
+        if(low_spur[row, k] > spurious_cut):
+            true_vals[vals_added, k] = low_vals[row, k]
+            true_weights[vals_added, k] = low_weights[row, k]
+            vals_added += 1
+        
+        row += 1
+    
+    if(vals_added < values):
+        print("not enough values :/")
+           
+
+fig, axs = plt.subplots(1, 2)
+for i in range(values):
+    print("i =", i, low_weights[i,:])
+    axs[0].plot(a*k_array[:,0], (a**2/D_p)*true_vals[i,:],'o', linewidth=0.5, label=str(i)+"q")
+
+axs[0].axvline(x=np.pi, color="black", linewidth=0.5)
+axs[0].axvline(x=3*np.pi, color="black", linewidth=0.5)
+axs[0].axvline(x=5*np.pi, color="black", linewidth=0.5)
+axs[0].legend(loc='upper right')
+axs[0].set_xlim([0,20])
+
+for i in range(values):
+    print("i =", i, low_weights[i,:])
+    axs[1].plot(a*k_array[:,0], true_weights[i,:],'-o', linewidth=0.5, label=str(i)+"q")
+
+axs[1].axvline(x=np.pi, color="black", linewidth=0.5)
+axs[1].axvline(x=3*np.pi, color="black", linewidth=0.5)
+axs[1].axvline(x=5*np.pi, color="black", linewidth=0.5)
+axs[1].legend(loc='upper right')
+axs[1].set_xlim([0,20])
+plt.show()
