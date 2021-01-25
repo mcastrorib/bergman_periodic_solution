@@ -48,6 +48,65 @@ def dataviz_Dt(Dt, time, title=''):
         plt.show()
         return
 
+def dataviz_vals_and_weights(vals, weights, k_array, a, nvals):       
+    k_points = k_array.shape[0]
+    vec_ka = np.array([a*np.linalg.norm(k_array[i]) for i in range(k_points)])
+    
+    fig, axs = plt.subplots(1, 2)
+    for i in range(nvals):
+        axs[0].plot(vec_ka, (a**2/D_p)*vals[i,:],'o', linewidth=0.5, label=str(i)+"q")
+
+    axs[0].axvline(x=np.pi, color="black", linewidth=0.5)
+    axs[0].axvline(x=3*np.pi, color="black", linewidth=0.5)
+    axs[0].axvline(x=5*np.pi, color="black", linewidth=0.5)
+    axs[0].legend(loc='upper right')
+    axs[0].set_xlim([0,(1.25 * vec_ka[-1])])
+
+    for i in range(nvals):
+        axs[1].plot(vec_ka, weights[i,:],'-o', linewidth=0.5, label=str(i)+"q")
+
+    axs[1].axvline(x=np.pi, color="black", linewidth=0.5)
+    axs[1].axvline(x=3*np.pi, color="black", linewidth=0.5)
+    axs[1].axvline(x=5*np.pi, color="black", linewidth=0.5)
+    axs[1].legend(loc='upper right')
+    axs[1].set_xlim([0,(1.25 * vec_ka[-1])])
+    plt.show()
+    return
+
+def dataviz_vals_histogram(vals, weights, spur, k_point, times, a, Dp, porosity):
+    fig, axs = plt.subplots(4, 1)
+    fig.suptitle("k index = " + str(k_point))
+    axs[0].semilogy((a**2/Dp) * np.real(vals[:, k_point]), 'o')
+    axs[0].set_title("Reduced eigenvalues ($\lambda$)")
+    axs[0].set_xlim([-1,vals.shape[0]])
+    # axs[3].set_ylim([0.00001,10000])
+    
+    axs[1].semilogy(np.real(weights[:, k_point]),'o')
+    axs[1].set_title("Weights ($\phi (g)$)")
+    axs[1].set_xlim([-1,vals.shape[0]])
+
+    product = np.zeros(vals.shape[0])
+    for time in times:
+        for i in range(vals.shape[0]):
+            product[i] = (1.0/porosity) * np.real(np.exp((-1.0)*vals[i, k_point]*time) * weights[i, k_point])
+        axs[2].semilogy(product,'o', label=str(time) + "ms")
+    axs[2].set_title(r'$e^{-\lambda t}|\phi(g)|$')
+    axs[2].set_xlim([-1,vals.shape[0]])
+    axs[2].set_ylim([1.e-6, 1.e+0])
+    axs[2].legend(loc='upper right')
+
+    axs[3].plot(np.real(spur[:, k_point]),'o')
+    axs[3].set_title("Spurious quantity")
+    axs[3].set_xlim([-1,vals.shape[0]])
+    axs[3].set_ylim([0,1])
+
+    # Hide x labels and tick labels for top plots and y ticks for right plots.
+    for ax in axs.flat:
+        ax.label_outer()
+    
+    plt.show()
+    return     
+
 # Functions
 def pore_function(x,y,z,R):
     point = np.array([x,y,z])
@@ -181,32 +240,76 @@ def Dt_recover(Mkt, k, times, Dp, points=10):
         # Dts[t] = ((-1.0) * np.log(Mkt[t, -1])) / (Dp * times[t] * np.linalg.norm(k)**2)
     return Dts
 
+def order_vals_weights_spurs(vals, weights, spurs):
+    size = vals.shape[0]
+    k_points = vals.shape[1]
+
+    low_vals = np.zeros([size, k_points], dtype=complex)
+    low_weights = np.zeros([size, k_points])
+    low_spur = np.zeros([size, k_points])
+    for k in range(k_points):
+        indexes = np.argsort(vals[:,k])
+        for val in range(size):
+            low_vals[val, k] = vals[indexes[val], k]
+            low_weights[val, k] = np.abs(weights[indexes[val], k])**2
+            low_spur[val, k] = np.real(spurs[indexes[val], k])
+    return low_vals, low_weights, low_spur
+
+def get_true_vals(vals, weights, spurs, spurious_cut, nvals):    
+    size = vals.shape[0]
+    k_points = vals.shape[1]
+    low_vals, low_weights, low_spur = order_vals_weights_spurs(vals, weights, spurs)
+
+    true_low_vals = np.zeros([nvals, k_points])
+    true_low_weights = np.zeros([nvals, k_points])
+    true_low_spurs = np.zeros([nvals, k_points])
+    for k in range(k_points):
+        vals_added = 0
+        row = 0
+        spur_count = 0
+        
+        while(vals_added < nvals and row < size):
+            if(low_spur[row, k] > spurious_cut):
+                true_low_vals[vals_added, k] = np.real(low_vals[row, k])
+                true_low_weights[vals_added, k] = low_weights[row, k]
+                true_low_spurs[vals_added, k] = low_spur[row, k]
+                vals_added += 1
+            else:
+                spur_count += 1
+            row += 1
+        
+        print("k = {}, {} spurious eigenvalues".format(k, spur_count))
+
+        if(vals_added < nvals):
+            print("not enough values :/")
+    return true_low_vals, true_low_weights, true_low_spurs
+
 
 # Problem parameters
 D_p = 2.5   # in um²/ms
 D_m = 0.0   # in um²/ms
 a = 10.0    # in um
 R = 5.0     # in um
-N = int(5)
+N = int(3)
 w = 0.9999
 u = 1.0
-spurious_cut = 0.3
+spurious_cut = 0.25
 
 k_direction = np.array([1,0,0])
-ka_max = 5*np.pi
+ka_max = 2*np.pi
 # ka_max = 0.1
-k_points = 50
+k_points = 20
 k_array = np.zeros([k_points, 3])
-k_linspace = np.linspace(ka_max/a, 0.01, k_points)
+k_linspace = np.linspace(ka_max/a, 0.001, k_points)
 k_linspace = np.flip(k_linspace)
 for i in range(3):
     k_array[:, i] = k_direction[i] * k_linspace
 # k_array = np.flip(k_array)
 
 
-time_samples = 8
-# times = np.logspace(-1,2,time_samples) # in ms
-times = [0.1, 0.3, 1.0, 3.0, 10.0, 30.0, 60.0, 100.0]
+time_samples = 40
+times = np.logspace(-1,2,time_samples) # in ms
+# times = [0.1, 0.3, 1.0, 3.0, 10.0, 30.0, 60.0, 100.0]
 Mkt = np.zeros([time_samples, k_points]) 
 
 volume = a**3
@@ -430,8 +533,8 @@ for k_index in range(k_points):
     for t_idx in range(time_samples):
         Mkt_sum = 0.0
         for n in range(points**3):
-            if(real_spurious[n, k_index] > spurious_cut):
-                Mkt_sum += np.exp((-1.0) * vals[n] * times[t_idx]) * (np.abs(weights[gk_index, n]))**2
+            # if(real_spurious[n, k_index] > spurious_cut):
+            Mkt_sum += np.exp((-1.0) * vals[n] * times[t_idx]) * (np.abs(weights[gk_index, n]))**2
         Mkt[t_idx, k_index] = (1.0 / porosity) * np.real(Mkt_sum)
 
 
@@ -451,65 +554,14 @@ for time in range(time_samples):
 
 # Data visualization
 time_labels = np.array([str(time) for time in times])
-dataviz_Mkt(Mkt, k_array, a, time_labels, np.sqrt(1.0))
+# dataviz_Mkt(Mkt, k_array, a, time_labels, np.sqrt(1.0))
 
 points = 4
-Dts = Dt_recover(normMkt, k_array, times, D_p, points)
-# dataviz_Dt(Dts, times)
+Dts = Dt_recover(Mkt, k_array, times, D_p, points)
+dataviz_Dt(Dts, times)
 
-# k_sqr = np.array([np.linalg.norm(k_array[i])**2 for i in range(points)])
-# for t in range(time_samples):
-#     plt.semilogy(k_sqr[:points], normMkt[t][:points], '-o')
-# plt.show()
-
-
-values = 20
-low_vals = np.zeros([rows, k_points], dtype=complex)
-low_weights = np.zeros([rows, k_points])
-low_spur = np.zeros([rows, k_points])
-for k in range(k_points):
-    indexes = np.argsort(vals_q[:,k])
-    for val in range(rows):
-        low_vals[val, k] = vals_q[indexes[val], k]
-        low_weights[val, k] = np.abs(weights_q[indexes[val], k])**2
-        low_spur[val, k] = real_spurious[indexes[val], k]
-
-
-true_vals = np.zeros([values, k_points])
-true_weights = np.zeros([values, k_points])
-for k in range(k_points):
-    vals_added = 0
-    row = 0
-    while(vals_added < values and row < rows):
-        if(low_spur[row, k] > spurious_cut):
-            true_vals[vals_added, k] = low_vals[row, k]
-            true_weights[vals_added, k] = low_weights[row, k]
-            vals_added += 1
-        
-        row += 1
-    
-    if(vals_added < values):
-        print("not enough values :/")
-           
-
-fig, axs = plt.subplots(1, 2)
-for i in range(values):
-    print("i =", i, low_weights[i,:])
-    axs[0].plot(a*k_array[:,0], (a**2/D_p)*true_vals[i,:],'o', linewidth=0.5, label=str(i)+"q")
-
-axs[0].axvline(x=np.pi, color="black", linewidth=0.5)
-axs[0].axvline(x=3*np.pi, color="black", linewidth=0.5)
-axs[0].axvline(x=5*np.pi, color="black", linewidth=0.5)
-axs[0].legend(loc='upper right')
-axs[0].set_xlim([0,20])
-
-for i in range(values):
-    print("i =", i, low_weights[i,:])
-    axs[1].plot(a*k_array[:,0], true_weights[i,:],'-o', linewidth=0.5, label=str(i)+"q")
-
-axs[1].axvline(x=np.pi, color="black", linewidth=0.5)
-axs[1].axvline(x=3*np.pi, color="black", linewidth=0.5)
-axs[1].axvline(x=5*np.pi, color="black", linewidth=0.5)
-axs[1].legend(loc='upper right')
-axs[1].set_xlim([0,20])
-plt.show()
+values = 50
+low_vals, low_weights, low_spurs = order_vals_weights_spurs(vals_q, weights_q, real_spurious)
+true_vals, true_weights, true_spur = get_true_vals(vals_q, weights_q, real_spurious, spurious_cut, values)
+# dataviz_vals_and_weights(true_vals, true_weights, k_array, a, values)
+dataviz_vals_histogram(low_vals, low_weights, low_spurs, 0, times[:time_samples:8], a, D_p, porosity)
