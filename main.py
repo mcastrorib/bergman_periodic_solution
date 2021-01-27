@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
+from matplotlib import cm
 import scipy as sp
 from LeastSquaresRegression import LeastSquaresRegression
 
@@ -44,7 +45,7 @@ def dataviz_Dt(Dt, time, title=''):
 
         # Set plot axes limits
         plt.xlim(0.0, 1e-3*time[-1])
-        plt.ylim(0.5,1.2)
+        plt.ylim(0.5,0.8)
         plt.show()
         return
 
@@ -106,6 +107,72 @@ def dataviz_vals_histogram(vals, weights, spur, k_point, times, a, Dp, porosity)
     
     plt.show()
     return     
+
+def plot_fft_3d_results(signal, dft, fft, nimgs=1):  
+    diff_abs = np.abs(dft)-np.abs(fft)
+    diff_real = np.real(dft)-np.real(fft)
+    diff_imag = np.imag(dft)-np.imag(fft)
+    cmap = cm.PRGn
+    cmap=cm.get_cmap(cmap)
+
+    points = signal.shape[0]
+    fig, axs = plt.subplots(nimgs, 10)
+    img_list = []
+    for im in range(nimgs):
+        im00 = axs[im,0].imshow(np.abs(signal[im]), cmap=cmap)
+        im01 = axs[im,1].imshow(np.abs(dft[im]), cmap=cmap)
+        im02 = axs[im,2].imshow(np.abs(fft[im]), cmap=cmap)
+        im03 = axs[im,3].imshow(np.real(dft[im]), cmap=cmap)
+        im04 = axs[im,4].imshow(np.real(fft[im]), cmap=cmap)
+        im05 = axs[im,5].imshow(np.imag(dft[im]), cmap=cmap)
+        im06 = axs[im,6].imshow(np.imag(fft[im]), cmap=cmap)
+        im07 = axs[im,7].imshow(diff_real[im], cmap=cmap)
+        im08 = axs[im,8].imshow(diff_imag[im], cmap=cmap)
+        im09 = axs[im,9].imshow(diff_abs[im], cmap=cmap)             
+
+        fig.colorbar(im00, ax=axs[im,0])
+        fig.colorbar(im01, ax=axs[im,1])
+        fig.colorbar(im02, ax=axs[im,2])
+        fig.colorbar(im03, ax=axs[im,3])
+        fig.colorbar(im04, ax=axs[im,4])
+        fig.colorbar(im05, ax=axs[im,5])
+        fig.colorbar(im06, ax=axs[im,6])
+        fig.colorbar(im07, ax=axs[im,7])
+        fig.colorbar(im08, ax=axs[im,8])
+        fig.colorbar(im09, ax=axs[im,9])
+    
+    axs[0,0].set_title("signal")
+    axs[0,1].set_title("abs(dft)")
+    axs[0,2].set_title("abs(fft)")
+    axs[0,3].set_title("re(dft)")
+    axs[0,4].set_title("re(fft)")
+    axs[0,5].set_title("im(dft)")
+    axs[0,6].set_title("im(fft)")
+    axs[0,7].set_title("re(diff)")
+    axs[0,8].set_title("im(diff)")
+    axs[0,9].set_title("abs(diff)")
+    
+    for im in range(nimgs):
+        for col in range(6):
+            axs[im,col].grid(False)
+
+            # Hide axes ticks
+            axs[im,col].set_xticks([])
+            axs[im,col].set_yticks([])
+    
+    # fig.tight_layout()
+    plt.show()
+    return
+
+def normalize_signal_3d(signal):
+    nsignal = np.zeros([signal.shape[0], signal.shape[1], signal.shape[2]], dtype=complex)
+    s0 = signal.max()
+
+    for k in range(signal.shape[2]):
+        for i in range(signal.shape[0]):
+            for j in range(signal.shape[1]):
+                nsignal[i,j,k] = signal[i,j,k]/s0
+    return nsignal
 
 # Functions
 def pore_function(x,y,z,R):
@@ -290,10 +357,10 @@ D_p = 2.5   # in um²/ms
 D_m = 0.0   # in um²/ms
 a = 10.0    # in um
 R = 5.0     # in um
-N = int(3)
+N = int(5)
 w = 0.9999
 u = 1.0
-spurious_cut = 0.25
+spurious_cut = 0.0001
 
 k_direction = np.array([1,0,0])
 ka_max = 2*np.pi
@@ -394,10 +461,10 @@ for k in range(dpoints):
             matrix_dr[i,j,k] = matrix_function(px, py, pz, R)
 
 # Apply FFT-3D to characteristic signal
-# pore_dg = apply_fft(pore_dr)
-# pore_dg = (1.0/volume) * pore_dg
-# matrix_dg = apply_fft(matrix_dr)
-# matrix_dg = (1.0/volume) * matrix_dg
+pore_dg2 = apply_fft(pore_dr)
+pore_dg2 = (1.0/volume) * pore_dg2
+matrix_dg2 = apply_fft(matrix_dr)
+matrix_dg2 = (1.0/volume) * matrix_dg2
 
 pore_dg = apply_dft(pore_dr, dr, dg, volume, dpoints)
 # matrix_dg = apply_dft(matrix_dr, dr, dg, volume, dpoints)
