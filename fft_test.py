@@ -260,40 +260,42 @@ def test_fft2D():
     plot_fft_2d_results(signal, norm_dft_kspec, norm_fft_kspec)
     return
 
-N = 6
-a = 1.0
-volume = a**3
-size = 2*N + 1 
-signal =  np.zeros([size, size, size])
+def test_fft3D():
+    N = 6
+    a = 1.0
+    volume = a**3
+    size = 2*N + 1 
+    signal =  np.zeros([size, size, size])
 
-Xfreq = 0.5*a / float(N)
-# [x, y, z] = np.meshgrid(rfreq * Nrange, rfreq * Nrange, rfreq * Nrange) 
-vecX = np.linspace(-0.5*a, 0.5*a, 2*size + 1)[1:2*size:2]
-vecY = np.linspace(-0.5*a, 0.5*a, 2*size + 1)[1:2*size:2]
-vecZ = np.linspace(-0.5*a, 0.5*a, 2*size + 1)[1:2*size:2]
+    Xfreq = 0.5*a / float(N)
+    # [x, y, z] = np.meshgrid(rfreq * Nrange, rfreq * Nrange, rfreq * Nrange) 
+    vecX = np.linspace(-0.5*a, 0.5*a, 2*size + 1)[1:2*size:2]
+    vecY = np.linspace(-0.5*a, 0.5*a, 2*size + 1)[1:2*size:2]
+    vecZ = np.linspace(-0.5*a, 0.5*a, 2*size + 1)[1:2*size:2]
 
 
-Kfreq = 2*np.pi/a
-[vecKX] = np.meshgrid(Kfreq*np.arange(-N, N+1))
-[vecKY] = np.meshgrid(Kfreq*np.arange(-N, N+1))
-[vecKZ] = np.meshgrid(Kfreq*np.arange(-N, N+1))
+    Kfreq = 2*np.pi/a
+    [vecKX] = np.meshgrid(Kfreq*np.arange(-N, N+1))
+    [vecKY] = np.meshgrid(Kfreq*np.arange(-N, N+1))
+    [vecKZ] = np.meshgrid(Kfreq*np.arange(-N, N+1))
 
-for k in range(size):
-    for i in range(size):
-        for j in range(size):
-            signal[i,j, k] = func(vecX[j], vecY[i], vecZ[k], a/2)
+    for k in range(size):
+        for i in range(size):
+            for j in range(size):
+                signal[i,j, k] = func(vecX[j], vecY[i], vecZ[k], a/2)
 
-for k in range(size//4):
-    for i in range(size//4):
-        for j in range(size//4):
-            signal[size//2-i, size//2-j, size//2-k] = 1.0
-            signal[size//2+i, size//2-j, size//2+k] = 1.0
-    
+    for k in range(size//4):
+        for i in range(size//4):
+            for j in range(size//4):
+                signal[size//2-i, size//2-j, size//2-k] = 1.0
+                signal[size//2+i, size//2-j, size//2+k] = 1.0
+        
 
-dft_kspec = apply_dft_3d(signal, vecX, vecY, vecZ, vecKX, vecKY, vecKZ, volume, size)
-fft_kspec = apply_fft_3d(signal)
-plot_fft_3d_results(signal, dft_kspec, fft_kspec, size)
+    dft_kspec = apply_dft_3d(signal, vecX, vecY, vecZ, vecKX, vecKY, vecKZ, volume, size)
+    fft_kspec = apply_fft_3d(signal)
+    plot_fft_3d_results(signal, dft_kspec, fft_kspec, size)
 
-norm_fft_kspec = normalize_signal_3d(fft_kspec)
-norm_dft_kspec = normalize_signal_3d(dft_kspec)
-plot_fft_3d_results(signal, norm_dft_kspec, norm_fft_kspec, size)
+    norm_fft_kspec = normalize_signal_3d(fft_kspec)
+    norm_dft_kspec = normalize_signal_3d(dft_kspec)
+    plot_fft_3d_results(signal, norm_dft_kspec, norm_fft_kspec, size)
+    return

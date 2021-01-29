@@ -1,0 +1,7 @@
+separar autovalores verdadeiros e espúrios:
+- encontrar o menor autovalor verdadeiro e excluir do cálculo de M(k,t) todos os espúrios com magnitude menor do que ele.
+
+- Para tempos maiores, considerar apenas o autovalor mais baixo. Isso está acontecendo naturalmente??
+
+- Tabela I: tentar reproduzir os resultados. Para tal, é necessário separar os 7 autovalores reais mais baixos, calcular para q = (0.05, 0.0, 0.0) e (0.1, 0.0, 0.0). Com esses valores, recuperar A_n e B_n da equação:
+(val_nq / D_p) = (A_n / a²) + (B_n * q²) + O(q⁴)

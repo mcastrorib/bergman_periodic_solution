@@ -307,6 +307,13 @@ def Dt_recover(Mkt, k, times, Dp, points=10):
         # Dts[t] = ((-1.0) * np.log(Mkt[t, -1])) / (Dp * times[t] * np.linalg.norm(k)**2)
     return Dts
 
+def Dt_recover_paper(Mkt, k, times, Dp):
+    time_samples = len(times)
+    Dts = np.zeros(time_samples)
+    for t in range(time_samples):
+        Dts[t] = (-1.0) * np.log(Mkt[t, 0]) / (Dp * np.linalg.norm(k[0])**2 * times[t])
+    return Dts
+
 def order_vals_weights_spurs(vals, weights, spurs):
     size = vals.shape[0]
     k_points = vals.shape[1]
@@ -357,26 +364,26 @@ D_p = 2.5   # in um²/ms
 D_m = 0.0   # in um²/ms
 a = 10.0    # in um
 R = 5.0     # in um
-N = int(5)
+N = int(2)
 w = 0.9999
 u = 1.0
 spurious_cut = 0.0001
 
 k_direction = np.array([1,0,0])
-ka_max = 2*np.pi
+ka_max = 5.0*np.pi
 # ka_max = 0.1
-k_points = 20
+k_points = 50
 k_array = np.zeros([k_points, 3])
-k_linspace = np.linspace(ka_max/a, 0.001, k_points)
+k_linspace = np.linspace(ka_max/a, 0.01, k_points)
 k_linspace = np.flip(k_linspace)
 for i in range(3):
     k_array[:, i] = k_direction[i] * k_linspace
 # k_array = np.flip(k_array)
 
 
-time_samples = 40
-times = np.logspace(-1,2,time_samples) # in ms
-# times = [0.1, 0.3, 1.0, 3.0, 10.0, 30.0, 60.0, 100.0]
+time_samples = 8
+# times = np.logspace(-1,2,time_samples) # in ms
+times = [0.1, 0.3, 1.0, 3.0, 10.0, 30.0, 60.0, 100.0]
 Mkt = np.zeros([time_samples, k_points]) 
 
 volume = a**3
@@ -425,9 +432,6 @@ dpoints = 4*N + 1
 dNrange = np.arange(-2*N, 2*N+1)
 dRrange = np.linspace(-0.5*a, 0.5*a, 2*dpoints + 1)[1:2*dpoints:2]
 drfreq = 0.5*rfreq
-norm_factor = 1.0
-while (norm_factor < dpoints):
-    norm_factor *= 2.0
 
 [dg_x, dg_y, dg_z] = np.meshgrid(gfreq * dNrange, gfreq * dNrange, gfreq * dNrange)
 [dx, dy, dz] = np.meshgrid(dRrange, dRrange, dRrange)
@@ -461,14 +465,18 @@ for k in range(dpoints):
             matrix_dr[i,j,k] = matrix_function(px, py, pz, R)
 
 # Apply FFT-3D to characteristic signal
-pore_dg2 = apply_fft(pore_dr)
-pore_dg2 = (1.0/volume) * pore_dg2
-matrix_dg2 = apply_fft(matrix_dr)
-matrix_dg2 = (1.0/volume) * matrix_dg2
+# pore_dg = apply_fft(pore_dr)
+# pore_dg = (1.0/volume) * pore_dg
+# pore_dg = normalize_signal_3d(pore_dg)
+# matrix_dg = apply_fft(matrix_dr)
+# matrix_dg = (1.0/volume) * matrix_dg
+# matrix_dg = normalize_signal_3d(matrix_dg)
 
 pore_dg = apply_dft(pore_dr, dr, dg, volume, dpoints)
+# pore_dg = normalize_signal_3d(pore_dg)
 # matrix_dg = apply_dft(matrix_dr, dr, dg, volume, dpoints)
 matrix_dg = apply_identity(pore_dg, dpoints)
+# matrix_dg = normalize_signal_3d(matrix_dg)
 
 # Assembly matrices
 rows = points**3
@@ -531,9 +539,9 @@ for row in range(rows):
                         
 # Solve for q
 # for q in q_array:
-real_spurious = np.zeros([rows, k_points], dtype=complex)    
 vals_q = np.zeros([rows, k_points], dtype=complex)
 weights_q = np.zeros([rows, k_points], dtype=complex)
+spur_q = np.zeros([rows, k_points], dtype=complex)   
 first_brillouin = (0.5) * g[points//2 + 1, points//2 + 1, points//2 + 1][0]
 for k_index in range(k_points):
     kvec = k_array[k_index]
@@ -594,13 +602,13 @@ for k_index in range(k_points):
 
     for n in range(rows):
         value = ((vecs[:,n].H * matRRH) * vecs[:,n])
-        real_spurious[n, k_index] = value[0,0]      
+        spur_q[n, k_index] = value[0,0]      
 
     # M(k,t)
     for t_idx in range(time_samples):
         Mkt_sum = 0.0
         for n in range(points**3):
-            # if(real_spurious[n, k_index] > spurious_cut):
+            # if(spur_q[n, k_index] > spurious_cut):
             Mkt_sum += np.exp((-1.0) * vals[n] * times[t_idx]) * (np.abs(weights[gk_index, n]))**2
         Mkt[t_idx, k_index] = (1.0 / porosity) * np.real(Mkt_sum)
 
@@ -621,14 +629,14 @@ for time in range(time_samples):
 
 # Data visualization
 time_labels = np.array([str(time) for time in times])
-# dataviz_Mkt(Mkt, k_array, a, time_labels, np.sqrt(1.0))
+dataviz_Mkt(Mkt, k_array, a, time_labels, np.sqrt(1.0))
 
-points = 4
+points = 2
 Dts = Dt_recover(Mkt, k_array, times, D_p, points)
-dataviz_Dt(Dts, times)
+# dataviz_Dt(Dts, times)
 
 values = 50
-low_vals, low_weights, low_spurs = order_vals_weights_spurs(vals_q, weights_q, real_spurious)
-true_vals, true_weights, true_spur = get_true_vals(vals_q, weights_q, real_spurious, spurious_cut, values)
+low_vals, low_weights, low_spurs = order_vals_weights_spurs(vals_q, weights_q, spur_q)
+true_vals, true_weights, true_spur = get_true_vals(vals_q, weights_q, spur_q, spurious_cut, values)
 # dataviz_vals_and_weights(true_vals, true_weights, k_array, a, values)
 dataviz_vals_histogram(low_vals, low_weights, low_spurs, 0, times[:time_samples:8], a, D_p, porosity)
