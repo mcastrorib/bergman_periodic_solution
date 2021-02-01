@@ -1,9 +1,49 @@
+import os
+import json
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib import cm
 import scipy as sp
 from LeastSquaresRegression import LeastSquaresRegression
+
+def create_dir(dirname):
+    try:
+        os.mkdir(dirname)
+        print('Directory created')
+    except FileExistsError:
+        print('Directory already exists')
+    return
+
+
+
+def save_Mkt_results(Dp, lengthA, radius, rho, time, vecK, Mkt, dirpath):
+    # preprocessing
+    k_samples = vecK.shape[0]
+    ka_max = np.linalg.norm(vecK[-1]) * lengthA 
+    k = [list(vecK[i]) for i in range(k_samples)]
+    create_dir(dirpath)
+    filename = 'echoes_t=' + str(time) + 'ms_a=' + str(lengthA) + 'um_r=' + str(radius) + 'um_rho=' + str(rho)
+    filepath = dirpath + '/' + filename
+
+    # create dictionary with data for JSON format
+    data = {
+        'D0': Dp,
+        'length': lengthA,
+        'rho': rho,
+        'time': time,
+        'k_samples': k_samples,
+        'ka_max': ka_max,
+        'k': k,
+        'Mkt': list(Mkt) 
+    }
+
+    # save JSON file
+    with open(filepath + '.json', 'w') as outfile:
+        json.dump(data, outfile, indent=4)
+        print('JSON file was saved')
+    
+    return
 
 def dataviz_Mkt(Mkt, k, a, labels, diag=1.0 ,title=''):
         # Points (s=point_size, c=color, cmap=colormap)
@@ -371,21 +411,22 @@ def get_true_vals(vals, weights, spurs, spurious_cut, nvals):
 
 
 # Problem parameters
-D_p = 2.5   # in um²/ms
-D_m = 0.0   # in um²/ms
-a = 10.0    # in um
-Radius = 5.0     # in um
-N = int(3)
+D_p = 2.5       # in um²/ms
+D_m = 0.0       # in um²/ms
+a = 10.0        # in um
+Radius = 5.0    # in um
+rho = 0.0       # in um/ms
+N = int(5)
 w = 0.9999
 u = 1.0
-spurious_cut = 0.2
+spurious_cut = 0.25
 
 k_direction = np.array([1,0,0])
-# ka_min = 1.0
-# ka_max = 5*np.pi
-ka_min = 0.5
-ka_max = 1.0
-k_points = 2
+ka_min = 0.01
+ka_max = 5*np.pi
+# ka_min = 0.5
+# ka_max = 1.0
+k_points = 50
 k_array = np.zeros([k_points, 3])
 k_linspace = np.linspace(ka_min/a, ka_max/a, k_points)
 # k_linspace = np.flip(k_linspace)
@@ -394,9 +435,10 @@ for i in range(3):
 # k_array = np.flip(k_array)
 
 
-time_samples = 50
-times = np.logspace(-1,2,time_samples) # in ms
-# times = np.array([0.1, 0.3, 1.0, 3.0, 10.0, 30.0, 60.0, 100.0])
+time_samples = 4
+time_scale = a**2 / D_p
+# times = np.logspace(-1,2,time_samples) # in ms
+times = time_scale * np.array([0.2, 0.5, 1.0, 2.0])
 Mkt = np.zeros([time_samples, k_points]) 
 
 volume = a**3
@@ -682,3 +724,8 @@ q2 = k_array[:,0] * k_array[:,0]
 B = (1.0 / (q2[1] - q2[0])) * (reduced_vals[:, 1] - reduced_vals[:, 0])
 A = reduced_vals[:,0] - (B * q2[0])
 A = a**2 * A
+
+# Save results in JSON files
+dirpath = 'Results_a=' + str(a) + 'um_r=' + str(Radius) + 'um_rho=' + str(rho) + '_N=' + str(N)
+for t in range(time_samples):
+    save_Mkt_results(D_p, a, Radius, rho, times[t], k_array, Mkt[t], dirpath)
