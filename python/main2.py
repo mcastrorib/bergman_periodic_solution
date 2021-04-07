@@ -416,7 +416,7 @@ D_m = 0.0       # in um²/ms
 a = 10.0        # in um
 Radius = 5.0    # in um
 rho = 0.0       # in um/ms
-N = int(5)
+N = int(3)
 w = 0.9999
 u = 1.0
 spurious_cut = 0.25
@@ -435,10 +435,11 @@ for i in range(3):
 # k_array = np.flip(k_array)
 
 
-time_samples = 4
+time_samples = 8
 time_scale = a**2 / D_p
 # times = np.logspace(-1,2,time_samples) # in ms
-times = time_scale * np.array([0.2, 0.5, 1.0, 2.0])
+# times = time_scale * np.array([0.2, 0.5, 1.0, 2.0])
+times = np.array([0.1, 0.3, 1.0, 3.0, 10.0, 30.0, 60.0, 100.0])
 Mkt = np.zeros([time_samples, k_points]) 
 
 volume = a**3
@@ -635,7 +636,15 @@ for k_index in range(k_points):
         print("matV is symmetric")
     else:
         print("matV is not symmetric")
-    vals, vecs = np.linalg.eigh(matV)
+    vals, vecs = np.linalg.eig(matV)
+
+    # test eigenvalues - tested and it is working as expected.
+    # max_err = np.zeros(rows, dtype=complex)
+    # for row in range(rows):
+    #     matAux = (matV - vals[row] * np.eye(rows, dtype=complex)) * vecs[:, row]
+    #     max_err[row] = np.max(matAux)    
+    # print('max_error = ',max(np.abs(max_err)))
+
     # vec = vecs.transpose()
     # Sort eigen values and its vector
     # inds = np.argsort(vals)

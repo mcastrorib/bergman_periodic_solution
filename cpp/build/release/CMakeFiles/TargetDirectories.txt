@@ -1,0 +1,7 @@
+/home/matheus/Documentos/doutorado_ic/tese/NMR/bergman_periodic_solution/cpp/build/release/CMakeFiles/install/strip.dir
+/home/matheus/Documentos/doutorado_ic/tese/NMR/bergman_periodic_solution/cpp/build/release/CMakeFiles/edit_cache.dir
+/home/matheus/Documentos/doutorado_ic/tese/NMR/bergman_periodic_solution/cpp/build/release/CMakeFiles/bergman.dir
+/home/matheus/Documentos/doutorado_ic/tese/NMR/bergman_periodic_solution/cpp/build/release/CMakeFiles/rebuild_cache.dir
+/home/matheus/Documentos/doutorado_ic/tese/NMR/bergman_periodic_solution/cpp/build/release/CMakeFiles/list_install_components.dir
+/home/matheus/Documentos/doutorado_ic/tese/NMR/bergman_periodic_solution/cpp/build/release/CMakeFiles/install/local.dir
+/home/matheus/Documentos/doutorado_ic/tese/NMR/bergman_periodic_solution/cpp/build/release/CMakeFiles/install.dir

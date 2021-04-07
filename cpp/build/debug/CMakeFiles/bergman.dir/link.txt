@@ -1,0 +1,1 @@
+/usr/bin/c++  -fopenmp -g CMakeFiles/bergman.dir/main.cpp.o -o bergman  /usr/lib/gcc/x86_64-linux-gnu/9/libgomp.so /usr/lib/x86_64-linux-gnu/libpthread.so 
