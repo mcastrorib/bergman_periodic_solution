@@ -3,4 +3,4 @@
 #define BERGMAN_SOLUTION_VERSION_MINOR @BERGMAN_SOLUTION_VERSION_MINOR @
 
 // built-in libraries
-// #cmakedefine USE_BERGMAN_SOLUTION
+#cmakedefine USE_LSA

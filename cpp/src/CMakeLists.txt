@@ -7,7 +7,7 @@ project(BERGMAN_SOLUTION VERSION 0.1 LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
-# option(USE_PATHFINDER "Use provided Pathfinder internal lib implementation" ON)
+option(USE_LSA "Use provided least-square regression internal lib implementation" ON)
 
 # configure a header file to pass some of the CMake settings
 # to the source code
@@ -25,6 +25,11 @@ endif()
 find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 include_directories(/usr/include/eigen3)
 
+# list in-house libraries
+if(USE_LSA)
+  add_subdirectory(LSA)
+  list(APPEND EXTRA_LIBS LSA)
+endif()
 
 # add the executable
 add_executable(bergman main.cpp)

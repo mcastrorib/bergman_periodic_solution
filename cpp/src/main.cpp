@@ -1,7 +1,9 @@
 #include <iostream>
+#include <vector>
 #include <Eigen/Dense>
 #include <cmath>
 #include <omp.h>
+#include "LeastSquareAdjust.h"
  
 using namespace std;
 using namespace Eigen;
@@ -21,10 +23,13 @@ void printPhase(ArrayXcd& phase, int dim, string phaseName);
 void apply_dft(ArrayXcd& phase_kX, ArrayXd& phase_X, ArrayXXd& grid_X, ArrayXXd& grid_G, double volume, int dim);
 void apply_symmetric_dft_identity(ArrayXcd& matrix_kX, ArrayXcd& phase_kX, int dim);
 int findGkIndex(Vector3cd &kVec, ArrayXXd &gridG, int dim);
+ArrayXd recoverDt(ArrayXXd& Mkt, ArrayXXd& k, ArrayXd& times, double D_p, int points, bool verbose=true);
 
-int main()
+// Main Program
+int main(int argc, char *argv[])
 {
-    int N = 1;
+    bool modeVerbose = false;
+    int N = 5;
     double Dp = 2.5;
     double Dm = 0.0;
     double cellLength = 10.0;
@@ -33,28 +38,33 @@ int main()
     double u = 1.0;
     double rho = 0.0;
     double spuriousCut = 0.25;
+    int lsPoints = 5;
 
     // create array with wave vector k
-    int ka_Points = 40;
+    cout << endl << "** CREATING WAVENUMBER VECTOR K AND COLLECTING TIME SAMPLES**" << endl;
+    int ka_Points = 5;
     Vector3d ka_Direction(1.0, 0.0, 0.0);
-    double ka_Min = 0.01;
-    double ka_Max = 5.0 * M_PI;
+    double ka_Min = 0.001;
+    double ka_Max = 0.1 * M_PI;
     ArrayXXd ka_Table(3, ka_Points);
     for(int coord = 0; coord < 3; coord++) 
         ka_Table.row(coord) = ka_Direction(coord) * ArrayXd::LinSpaced(ka_Points, ka_Min / cellLength, ka_Max / cellLength);
 
 
     // create time samples
-    int time_Samples = 8;
+    int time_Samples = 30;
     double time_Scale = cellLength*cellLength/Dp;
     ArrayXd times_Array(time_Samples);
-    times_Array << 0.1, 0.3, 1.0, 3.0, 10.0, 30.0, 60.0, 100.0;
+    times_Array = time_Scale * ArrayXd::LinSpaced(time_Samples, 0.0005, 2.0);
+    // times_Array << 0.1, 0.3, 1.0, 3.0, 10.0, 30.0, 60.0, 100.0;
 
 
     // create array to store results
     ArrayXXd M_kt = ArrayXXd::Zero(time_Samples, ka_Points);
-    
+    cout << "done." << endl;
+
     // start computation
+    cout << endl << "** CREATING SPATIAL AND WAVEVECTOR GRIDS **" << endl;
     double volume = pow(cellLength, 3);
     double porosity = setPorosity(cellLength, sphereRadius);
     int points = 2*N + 1;
@@ -80,7 +90,7 @@ int main()
     int dpoints = 4*N + 1;
     int dpoints3D = dpoints*dpoints*dpoints;
 
-    // create spatial arrays
+    // create differential spatial arrays
     ArrayXd raw_dR = ArrayXd::LinSpaced(2*dpoints + 1, -0.5*cellLength, 0.5*cellLength);
     ArrayXd vec_dR(dpoints);
     for(int i = 0; i < dpoints; i++)
@@ -114,10 +124,13 @@ int main()
         if(pore_dR(index) == 1) matrix_dR(index) = 0;
         else matrix_dR(index) = 1;
     }
-
+    cout << "done." << endl;
+    
     // create wavenumber pore and matrix phase arrays
-    ArrayXcd pore_dG(dpoints3D); apply_dft(pore_dG, pore_dR, grid_dR, grid_dG, volume, dpoints);
+    ArrayXcd pore_dG(dpoints3D); apply_dft(pore_dG, pore_dR, grid_dR, grid_dG, volume, dpoints); 
+    cout << "done." << endl;
     ArrayXcd matrix_dG(dpoints3D); apply_symmetric_dft_identity(matrix_dG, pore_dG, dpoints); 
+    cout << "done." << endl;
 
     /*
         Here the actual complex matrix computations start 
@@ -128,10 +141,16 @@ int main()
     MatrixXcd matU = MatrixXcd::Zero(mRows, mCols);
     MatrixXcd matR = MatrixXcd::Zero(mRows, mCols);
     MatrixXcd matRinv = MatrixXcd::Zero(mRows, mCols);
+    MatrixXcd matRinvH = MatrixXcd::Zero(mRows, mCols);
     MatrixXcd matRH = MatrixXcd::Zero(mRows, mCols);
     MatrixXcd matRHinv = MatrixXcd::Zero(mRows, mCols);
     MatrixXcd matRRH = MatrixXcd::Zero(mRows, mCols);
     MatrixXcd matT = MatrixXcd::Zero(mRows, mCols);
+    MatrixXcd matV = MatrixXcd::Zero(mRows, mCols);
+    MatrixXcd matAux = MatrixXcd::Zero(mRows, mCols);
+    MatrixXcd weights = MatrixXcd::Zero(mRows, mCols);
+    ComplexEigenSolver<MatrixXcd> eigenSolver;
+
 
     // MatW assembly
     double ***occurs = alloc3DArray(dpoints, dpoints, dpoints);
@@ -167,15 +186,18 @@ int main()
     }
     for(int row = 0; row < mRows; row++) 
         matW(row, row) += 1.0;
-
+    cout << "done." << endl;
+    
     // Get cholesky decomposition of matrix R and agreggates
     cout << endl << "** APPLYING CHOLESKY DECOMPOSITION ON MATRIX W **" << endl;
     matRH = matW.llt().matrixL();
     matRHinv = matRH.inverse();
     matR = matRH.adjoint();
     matRinv = matR.inverse();
+    matRinvH = matRinv.adjoint();
     matRRH = matR * matRH;
-
+    cout << "done." << endl;
+    
     cout << endl << "** ASSEMBLYING MATRIX U **" << endl;
     for(int k = 0; k < points; k++) 
     {
@@ -207,7 +229,8 @@ int main()
     }
     for(int row = 0; row < mRows; row++) 
         matU(row, row) += 1.0;
-
+    cout << "done." << endl;
+    
     // Solve eigenvalue problem for q
     cout << endl << "** SOLVING EIGENVALUE PROBLEM FOR k **" << endl;
     ArrayXXcd vals_q = ArrayXXcd::Zero(mRows, ka_Points);
@@ -215,26 +238,152 @@ int main()
     ArrayXXcd spurs_q = ArrayXXcd::Zero(mRows, ka_Points);
     for(int kIndex = 0; kIndex < ka_Points; kIndex++)
     {
+        cout << ":: wavevector k[" << kIndex << "] out of " << ka_Points << endl;
+        // Find and get GkVec
         Vector3cd kVec(ka_Table(0,kIndex), ka_Table(1,kIndex), ka_Table(2,kIndex));
         int GkIndex = findGkIndex(kVec, grid_G, points);
         Vector3cd GkVec(grid_G(0, GkIndex), grid_G(1, GkIndex), grid_G(2, GkIndex));
         Vector3cd qVec = kVec - GkVec;
         
-        cout << "---------------------------------" << endl;
-        cout << "kIndex = \t" << kIndex << "\t GkIndex = \t" << GkIndex << endl;
-        cout << "k = \t" << kVec.transpose() << endl;
-        cout << "gk = \t" << GkVec.transpose() << endl;
-        cout << "q = \t" << qVec.transpose() << endl;      
-        cout << "---------------------------------" << endl << endl;
+        if(modeVerbose)
+        {
+            cout << "---------------------------------" << endl;
+            cout << "kIndex = \t" << kIndex << "\t GkIndex = \t" << GkIndex << endl;
+            cout << "k = \t" << kVec.transpose() << endl;
+            cout << "gk = \t" << GkVec.transpose() << endl;
+            cout << "q = \t" << qVec.transpose() << endl;      
+            cout << "---------------------------------" << endl << endl;
+        }
 
+        // Assemply matrix T
+        Vector3cd qgRow, qgCol;
+        Vector3cd rowGVec, colGVec;
+        for(int k = 0; k < points; k++)
+        {
+            for(int i = 0; i < points; i++)
+            {
+                for(int j = 0; j < points; j++)
+                {
+                    int rowIndex = IDX2C_3D(i,j,k,points);
+                    rowGVec(0) = grid_G(0, rowIndex);
+                    rowGVec(1) =  grid_G(1, rowIndex);
+                    rowGVec(2) =  grid_G(2, rowIndex);
+                    qgRow = qVec + rowGVec;
+
+                    for(int kk = 0; kk < points; kk++)
+                    {
+                        for(int ii = 0; ii < points; ii++)
+                        {
+                            for(int jj = 0; jj < points; jj++)
+                            {
+                                int colIndex = IDX2C_3D(ii,jj,kk,points);
+                                colGVec(0) = grid_G(0, colIndex);
+                                colGVec(1) =  grid_G(1, colIndex);
+                                colGVec(2) =  grid_G(2, colIndex);
+                                qgCol = qVec + colGVec;
+
+                                matT(rowIndex, colIndex) = qgRow.dot(qgCol) * matU(rowIndex, colIndex);
+                            }    
+                        }   
+                    }                    
+                }    
+            }   
+        }
+
+        // Compute V matrix and check if it is symmetric and positive-definite
+        matV = Dp * (matRinvH * matT * matRinv);
+        LLT<MatrixXcd> A_llt(matV);
+        if (!matV.isApprox(matV.transpose())) 
+        {
+            // throw std::runtime_error("Possibly non semi-positive definitie matrix!");
+            cout << "Matrix V is not symmetric :(" << endl;
+        }
+        if (A_llt.info() == Eigen::NumericalIssue) 
+        {
+            // throw std::runtime_error("Possibly non semi-positive definitie matrix!");
+            cout << "Matrix V is not semi-definite :(" << endl;
+        }  
+
+         
+        // Compute eigen values and vectors of matrix V
+        eigenSolver.compute(matV);
+        if (eigenSolver.info() == Eigen::NumericalIssue) 
+        {
+            // throw std::runtime_error("Possibly non semi-positive definitie matrix!");
+            cout << "Could not compute matV eigen values and vectors :(" << endl;
+        }  
+
+        
+        // Save persistent data
+        matAux = (1.0/w) * (matRH - ((1-w) * matRinv));
+        weights =  matAux * eigenSolver.eigenvectors();
+        for (int row = 0; row < mRows; row++)
+        { 
+            vals_q(row, kIndex) = eigenSolver.eigenvalues()[row];
+            weights_q(row, kIndex) = weights(GkIndex, row);
+        }
+
+        // Compute M(k,t)
+        for(int time = 0; time < time_Samples; time++)
+        {
+            complex <double> MktSum = 0.0;
+            for(int n = 0; n < points3D; n++)
+            {
+                MktSum += exp((-1.0) * eigenSolver.eigenvalues()[n] * times_Array[time]) * pow(weights(GkIndex, n), 2.0); 
+            }
+
+            M_kt(time, kIndex) = (1.0/porosity) * MktSum.real();
+        }
     }
+    cout << "done." << endl;
+    
+    // Recover D(t) by least-squares regression
+    cout << endl << "** RECOVERING D(t) **" << endl;
+    ArrayXd Dts = recoverDt(M_kt, ka_Table, times_Array, Dp, lsPoints, modeVerbose);
+    cout << "done." << endl;
 
     // debug region
-    // for(int row = 0; row < mRows; row++)
-    //     cout << "matW row "<< row << "\n" << matW.row(row) << endl;
+    cout << endl << endl << "** DEBUG REGION **" << endl;    
+    cout << endl << "D(t):" << endl;
+    for(int time = 0; time < time_Samples; time++)
+    {
+        cout << "D(" << times_Array(time) << ") = " << Dts(time) << endl;
+    }
     
-
     return 0;
+}
+
+ArrayXd recoverDt(ArrayXXd &M_kt, ArrayXXd &k, ArrayXd &times, double Dp, int points, bool verbose)
+{
+    int timeSamples = times.size();
+    ArrayXd Dts(timeSamples);
+    VectorXd kSquared(points);
+    VectorXd logM_kt(points);
+    VectorXd DpKKt(points);
+    Vector3d kVec;
+    for(int point = 0; point < points; point++)
+    {
+        kVec(0) = k(0,point);
+        kVec(1) = k(1,point);
+        kVec(2) = k(2,point);
+        kSquared(point) = kVec.squaredNorm();
+    }
+
+    for(int t = 0; t < timeSamples; t++)
+    {        
+        for(int point = 0; point < points; point++)
+        {
+            logM_kt(point) = (-1.0) * log(M_kt(t, point));
+            DpKKt(point) = Dp * times(t) * kSquared(point);
+        }
+
+        LeastSquareAdjust lsa(DpKKt, logM_kt, verbose);
+        lsa.setPoints(points);
+        lsa.solve();
+        Dts(t) = lsa.getB();
+    }
+
+    return Dts;
 }
 
 int findGkIndex(Vector3cd &kVec, ArrayXXd &gridG, int dim)
