@@ -1,4 +1,6 @@
 #include <iostream>
+#include <sstream>
+#include <fstream>
 #include <vector>
 #include <Eigen/Dense>
 #include <cmath>
@@ -24,6 +26,8 @@ void apply_dft(ArrayXcd& phase_kX, ArrayXd& phase_X, ArrayXXd& grid_X, ArrayXXd&
 void apply_symmetric_dft_identity(ArrayXcd& matrix_kX, ArrayXcd& phase_kX, int dim);
 int findGkIndex(Vector3cd &kVec, ArrayXXd &gridG, int dim);
 ArrayXd recoverDt(ArrayXXd& Mkt, ArrayXXd& k, ArrayXd& times, double D_p, int points, bool verbose=true);
+void saveMktResults(ArrayXXd& k, ArrayXd& times, ArrayXXd& Mkt);
+void saveDtResults(ArrayXd& times, ArrayXd& Dt);
 
 // Main Program
 int main(int argc, char *argv[])
@@ -32,7 +36,7 @@ int main(int argc, char *argv[])
     double time = omp_get_wtime();
 
     bool modeVerbose = false;
-    int N = 5;
+    int N = 3;
     double Dp = 2.5;
     double Dm = 0.0;
     double cellLength = 10.0;
@@ -349,7 +353,84 @@ int main(int argc, char *argv[])
     
     time = omp_get_wtime() - time;
     cout << "Runtime: " << time << " s." << endl;
+
+    // Save results
+    saveMktResults(ka_Table, times_Array, M_kt);
+    saveDtResults(times_Array, Dts);
     return 0;
+}
+
+void saveMktResults(ArrayXXd& k, ArrayXd& times, ArrayXXd& Mkt)
+{
+    string filename = "./db/temp/Mkt.txt";
+
+	ofstream file;
+    file.open(filename, ios::out);
+    if (file.fail())
+    {
+        cout << "Could not open file from disc." << endl;
+        exit(1);
+    }
+
+    int kPoints = k.cols();
+    int timeSamples = times.size();
+
+    file << "k points, time samples" << endl;
+    file << kPoints << ", " << timeSamples << endl;
+
+    file << endl << "-- Wave vector k:" << endl;
+    for (int index = 0; index < kPoints; index++)
+    {
+        file << index << ", ";
+        file << k(0, index) << ", ";
+        file << k(1, index) << ", ";
+        file << k(2, index)  << endl;
+    }
+
+    file << endl << "-- Time samples:" << endl;
+    for (int index = 0; index < timeSamples; index++)
+    {
+        file << index << ", ";
+        file << times(index)  << endl;
+    }
+
+    file << endl << "-- M(k == rows, t == cols):" << endl;
+    for (int kIdx = 0; kIdx < kPoints; kIdx++)
+    {
+        file << kIdx;
+        for (int tIdx = 0; tIdx < timeSamples; tIdx++)
+        {
+            file << ", " << Mkt(tIdx, kIdx);
+        }
+        file << endl;
+    }
+
+    file.close();
+}
+
+void saveDtResults(ArrayXd& times, ArrayXd& Dt)
+{
+    string filename = "./db/temp/Dt.txt";
+
+	ofstream file;
+    file.open(filename, ios::out);
+    if (file.fail())
+    {
+        cout << "Could not open file from disc." << endl;
+        exit(1);
+    }
+
+    int timeSamples = times.size();
+
+    file << endl << "Id, Observation time, Normalized Effective Diffusion Coefficient" << endl;
+    for (int index = 0; index < timeSamples; index++)
+    {
+        file << index << ", ";
+        file << times(index)  << ", ";
+        file << Dt(index) << endl;
+    }
+
+    file.close();
 }
 
 ArrayXd recoverDt(ArrayXXd &M_kt, ArrayXXd &k, ArrayXd &times, double Dp, int points, bool verbose)
