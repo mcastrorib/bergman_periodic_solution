@@ -28,6 +28,9 @@ ArrayXd recoverDt(ArrayXXd& Mkt, ArrayXXd& k, ArrayXd& times, double D_p, int po
 // Main Program
 int main(int argc, char *argv[])
 {
+    // measure runtime
+    double time = omp_get_wtime();
+
     bool modeVerbose = false;
     int N = 5;
     double Dp = 2.5;
@@ -147,9 +150,10 @@ int main(int argc, char *argv[])
     MatrixXcd matRRH = MatrixXcd::Zero(mRows, mCols);
     MatrixXcd matT = MatrixXcd::Zero(mRows, mCols);
     MatrixXcd matV = MatrixXcd::Zero(mRows, mCols);
+    MatrixXcd matId = MatrixXcd::Identity(mRows, mCols);
     MatrixXcd matAux = MatrixXcd::Zero(mRows, mCols);
     MatrixXcd weights = MatrixXcd::Zero(mRows, mCols);
-    ComplexEigenSolver<MatrixXcd> eigenSolver;
+    GeneralizedSelfAdjointEigenSolver<MatrixXcd> eigenSolver;
 
 
     // MatW assembly
@@ -292,21 +296,14 @@ int main(int argc, char *argv[])
 
         // Compute V matrix and check if it is symmetric and positive-definite
         matV = Dp * (matRinvH * matT * matRinv);
-        LLT<MatrixXcd> A_llt(matV);
-        if (!matV.isApprox(matV.transpose())) 
+        if (!matV.isApprox(matV.adjoint())) 
         {
             // throw std::runtime_error("Possibly non semi-positive definitie matrix!");
             cout << "Matrix V is not symmetric :(" << endl;
         }
-        if (A_llt.info() == Eigen::NumericalIssue) 
-        {
-            // throw std::runtime_error("Possibly non semi-positive definitie matrix!");
-            cout << "Matrix V is not semi-definite :(" << endl;
-        }  
-
          
         // Compute eigen values and vectors of matrix V
-        eigenSolver.compute(matV);
+        eigenSolver.compute(matV, matId); // using GeneralizedSelfAdjointEigenSolver class 
         if (eigenSolver.info() == Eigen::NumericalIssue) 
         {
             // throw std::runtime_error("Possibly non semi-positive definitie matrix!");
@@ -350,6 +347,8 @@ int main(int argc, char *argv[])
         cout << "D(" << times_Array(time) << ") = " << Dts(time) << endl;
     }
     
+    time = omp_get_wtime() - time;
+    cout << "Runtime: " << time << " s." << endl;
     return 0;
 }
 
