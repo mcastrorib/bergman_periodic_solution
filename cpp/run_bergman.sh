@@ -5,7 +5,7 @@
 ./bergman
 
 # run python script to visualize results
-python3 ./datavis/bergman_plot.py
+python3 .src/datavis/bergman_plot.py
 
 
 

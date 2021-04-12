@@ -26,6 +26,7 @@ void apply_dft(ArrayXcd& phase_kX, ArrayXd& phase_X, ArrayXXd& grid_X, ArrayXXd&
 void apply_symmetric_dft_identity(ArrayXcd& matrix_kX, ArrayXcd& phase_kX, int dim);
 int findGkIndex(Vector3cd &kVec, ArrayXXd &gridG, int dim);
 ArrayXd recoverDt(ArrayXXd& Mkt, ArrayXXd& k, ArrayXd& times, double D_p, int points, bool verbose=true);
+void saveParameters(int N, double Dp, double Dm, double cellLength, double sphereRadius, double rho);
 void saveMktResults(ArrayXXd& k, ArrayXd& times, ArrayXXd& Mkt);
 void saveDtResults(ArrayXd& times, ArrayXd& Dt);
 
@@ -355,9 +356,33 @@ int main(int argc, char *argv[])
     cout << "Runtime: " << time << " s." << endl;
 
     // Save results
+    saveParameters(N, Dp, Dm, cellLength, sphereRadius, rho);
     saveMktResults(ka_Table, times_Array, M_kt);
     saveDtResults(times_Array, Dts);
     return 0;
+}
+
+void saveParameters(int N, double Dp, double Dm, double cellLength, double sphereRadius, double rho)
+{
+    string filename = "./db/temp/Parameters.txt";
+
+	ofstream file;
+    file.open(filename, ios::out);
+    if (file.fail())
+    {
+        cout << "Could not open file from disc." << endl;
+        exit(1);
+    }
+
+    file << "N, Dp, Dm, cell length, sphere radius, wall relaxivity" << endl;
+    file << N << ", ";
+    file << Dp << ", ";
+    file << Dm << ", ";
+    file << cellLength << ", ";
+    file << sphereRadius << ", ";
+    file << rho;    
+
+    file.close();
 }
 
 void saveMktResults(ArrayXXd& k, ArrayXd& times, ArrayXXd& Mkt)
@@ -422,7 +447,7 @@ void saveDtResults(ArrayXd& times, ArrayXd& Dt)
 
     int timeSamples = times.size();
 
-    file << endl << "Id, Observation time, Normalized Effective Diffusion Coefficient" << endl;
+    file << "Id, Observation time, Normalized Effective Diffusion Coefficient" << endl;
     for (int index = 0; index < timeSamples; index++)
     {
         file << index << ", ";

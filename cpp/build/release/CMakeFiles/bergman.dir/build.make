@@ -44,10 +44,10 @@ cmake_force:
 SHELL = /bin/sh
 
 # The CMake executable.
-CMAKE_COMMAND = /snap/cmake/846/bin/cmake
+CMAKE_COMMAND = /snap/cmake/858/bin/cmake
 
 # The command to remove a file.
-RM = /snap/cmake/846/bin/cmake -E rm -f
+RM = /snap/cmake/858/bin/cmake -E rm -f
 
 # Escaping for special characters.
 EQUALS = =
@@ -92,6 +92,7 @@ bergman_EXTERNAL_OBJECTS =
 
 bergman: CMakeFiles/bergman.dir/main.cpp.o
 bergman: CMakeFiles/bergman.dir/build.make
+bergman: LSA/libLSA.a
 bergman: /usr/lib/gcc/x86_64-linux-gnu/9/libgomp.so
 bergman: /usr/lib/x86_64-linux-gnu/libpthread.so
 bergman: CMakeFiles/bergman.dir/link.txt

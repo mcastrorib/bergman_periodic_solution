@@ -1,0 +1,2 @@
+/usr/bin/ar qc libLSA.a CMakeFiles/LSA.dir/LeastSquareAdjust.cpp.o
+/usr/bin/ranlib libLSA.a

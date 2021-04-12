@@ -4,7 +4,7 @@
 # compile CXX with /usr/bin/c++
 CXX_DEFINES = 
 
-CXX_INCLUDES = -I/home/matheus/Documentos/doutorado_ic/tese/NMR/bergman_periodic_solution/cpp/build/release -isystem /usr/include/eigen3
+CXX_INCLUDES = -I/home/matheus/Documentos/doutorado_ic/tese/NMR/bergman_periodic_solution/cpp/build/release -I/home/matheus/Documentos/doutorado_ic/tese/NMR/bergman_periodic_solution/cpp/src/LSA -isystem /usr/include/eigen3
 
 CXX_FLAGS =  -fopenmp -O3 -DNDEBUG -fopenmp -std=gnu++11
 

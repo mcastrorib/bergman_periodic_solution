@@ -178,6 +178,19 @@ CMakeFiles/bergman.dir/main.cpp.o: /home/matheus/Documentos/doutorado_ic/tese/NM
   /usr/include/c++/9/bits/ostream.tcc \
   /usr/include/c++/9/istream \
   /usr/include/c++/9/bits/istream.tcc \
+  /usr/include/c++/9/sstream \
+  /usr/include/c++/9/bits/sstream.tcc \
+  /usr/include/c++/9/fstream \
+  /usr/include/c++/9/bits/codecvt.h \
+  /usr/include/x86_64-linux-gnu/c++/9/bits/basic_file.h \
+  /usr/include/x86_64-linux-gnu/c++/9/bits/c++io.h \
+  /usr/include/c++/9/bits/fstream.tcc \
+  /usr/include/c++/9/vector \
+  /usr/include/c++/9/bits/stl_construct.h \
+  /usr/include/c++/9/bits/stl_uninitialized.h \
+  /usr/include/c++/9/bits/stl_vector.h \
+  /usr/include/c++/9/bits/stl_bvector.h \
+  /usr/include/c++/9/bits/vector.tcc \
   /usr/include/eigen3/Eigen/Dense \
   /usr/include/eigen3/Eigen/Core \
   /usr/include/eigen3/Eigen/src/Core/util/DisableStupidWarnings.h \
@@ -195,8 +208,6 @@ CMakeFiles/bergman.dir/main.cpp.o: /home/matheus/Documentos/doutorado_ic/tese/NM
   /usr/include/x86_64-linux-gnu/bits/mathcalls-narrow.h \
   /usr/include/x86_64-linux-gnu/bits/iscanonical.h \
   /usr/include/x86_64-linux-gnu/bits/mathinline.h \
-  /usr/include/c++/9/sstream \
-  /usr/include/c++/9/bits/sstream.tcc \
   /usr/include/eigen3/Eigen/src/Core/util/MKL_support.h \
   /usr/lib/gcc/x86_64-linux-gnu/9/include/mmintrin.h \
   /usr/lib/gcc/x86_64-linux-gnu/9/include/emmintrin.h \
@@ -237,7 +248,6 @@ CMakeFiles/bergman.dir/main.cpp.o: /home/matheus/Documentos/doutorado_ic/tese/NM
   /usr/include/c++/9/bits/algorithmfwd.h \
   /usr/include/c++/9/bits/stl_heap.h \
   /usr/include/c++/9/bits/stl_tempbuf.h \
-  /usr/include/c++/9/bits/stl_construct.h \
   /usr/include/c++/9/bits/uniform_int_dist.h \
   /usr/include/eigen3/Eigen/src/Core/util/Constants.h \
   /usr/include/eigen3/Eigen/src/Core/util/Meta.h \
@@ -408,8 +418,11 @@ CMakeFiles/bergman.dir/main.cpp.o: /home/matheus/Documentos/doutorado_ic/tese/NM
   /usr/include/eigen3/Eigen/src/Eigenvalues/RealQZ.h \
   /usr/include/eigen3/Eigen/src/Eigenvalues/GeneralizedEigenSolver.h \
   /usr/include/eigen3/Eigen/src/Eigenvalues/RealQZ.h \
-  /usr/include/eigen3/Eigen/src/Eigenvalues/MatrixBaseEigenvalues.h
+  /usr/include/eigen3/Eigen/src/Eigenvalues/MatrixBaseEigenvalues.h \
+  /home/matheus/Documentos/doutorado_ic/tese/NMR/bergman_periodic_solution/cpp/src/LSA/LeastSquareAdjust.h
 
+
+/home/matheus/Documentos/doutorado_ic/tese/NMR/bergman_periodic_solution/cpp/src/LSA/LeastSquareAdjust.h:
 
 /usr/include/eigen3/Eigen/src/Eigenvalues/MatrixBaseEigenvalues.h:
 
@@ -440,8 +453,6 @@ CMakeFiles/bergman.dir/main.cpp.o: /home/matheus/Documentos/doutorado_ic/tese/NM
 /usr/include/eigen3/Eigen/src/Geometry/Quaternion.h:
 
 /usr/include/eigen3/Eigen/src/Geometry/Rotation2D.h:
-
-/usr/include/eigen3/Eigen/src/Geometry/Homogeneous.h:
 
 /usr/include/eigen3/Eigen/src/Geometry/EulerAngles.h:
 
@@ -475,8 +486,6 @@ CMakeFiles/bergman.dir/main.cpp.o: /home/matheus/Documentos/doutorado_ic/tese/NM
 
 /usr/include/eigen3/Eigen/src/misc/Image.h:
 
-/usr/include/eigen3/Eigen/src/misc/Kernel.h:
-
 /usr/include/eigen3/Eigen/src/Core/util/ReenableStupidWarnings.h:
 
 /usr/include/eigen3/Eigen/src/Core/GlobalFunctions.h:
@@ -489,13 +498,25 @@ CMakeFiles/bergman.dir/main.cpp.o: /home/matheus/Documentos/doutorado_ic/tese/NM
 
 /usr/include/eigen3/Eigen/src/Core/VectorwiseOp.h:
 
-/usr/include/eigen3/Eigen/src/Core/Select.h:
-
 /usr/include/eigen3/Eigen/src/Core/BooleanRedux.h:
 
 /usr/include/eigen3/Eigen/src/Core/ConditionEstimator.h:
 
 /usr/include/eigen3/Eigen/src/Core/CoreIterators.h:
+
+/usr/include/eigen3/Eigen/src/Core/products/TriangularSolverMatrix.h:
+
+/usr/include/eigen3/Eigen/src/Core/products/TriangularMatrixVector.h:
+
+/usr/include/eigen3/Eigen/src/Core/products/SelfadjointRank2Update.h:
+
+/usr/include/eigen3/Eigen/src/Geometry/Hyperplane.h:
+
+/usr/include/eigen3/Eigen/src/Core/products/SelfadjointProduct.h:
+
+/usr/include/eigen3/Eigen/src/Core/products/SelfadjointMatrixMatrix.h:
+
+/usr/include/eigen3/Eigen/src/Core/products/SelfadjointMatrixVector.h:
 
 /usr/include/ctype.h:
 
@@ -518,6 +539,10 @@ CMakeFiles/bergman.dir/main.cpp.o: /home/matheus/Documentos/doutorado_ic/tese/NM
 /usr/include/asm-generic/errno-base.h:
 
 /usr/include/c++/9/bits/stl_relops.h:
+
+/usr/include/eigen3/Eigen/src/Core/products/TriangularSolverVector.h:
+
+/usr/include/eigen3/Eigen/src/Core/CwiseUnaryOp.h:
 
 /usr/include/c++/9/bits/locale_classes.tcc:
 
@@ -562,6 +587,10 @@ CMakeFiles/bergman.dir/main.cpp.o: /home/matheus/Documentos/doutorado_ic/tese/NM
 /usr/include/c++/9/bits/basic_string.h:
 
 /usr/include/c++/9/bits/alloc_traits.h:
+
+/usr/include/eigen3/Eigen/src/Core/products/TriangularMatrixMatrix.h:
+
+/usr/include/eigen3/Eigen/src/Core/Transpose.h:
 
 /usr/include/x86_64-linux-gnu/bits/stdlib-bsearch.h:
 
@@ -635,13 +664,13 @@ CMakeFiles/bergman.dir/main.cpp.o: /home/matheus/Documentos/doutorado_ic/tese/NM
 
 /usr/include/x86_64-linux-gnu/bits/pthreadtypes.h:
 
-/usr/include/eigen3/Eigen/src/Core/products/SelfadjointRank2Update.h:
-
 /usr/include/x86_64-linux-gnu/bits/types/clock_t.h:
 
 /usr/include/eigen3/Eigen/src/Core/SolverBase.h:
 
 /usr/include/x86_64-linux-gnu/bits/select.h:
+
+/usr/include/c++/9/fstream:
 
 /usr/include/x86_64-linux-gnu/bits/types/struct_timeval.h:
 
@@ -668,8 +697,6 @@ CMakeFiles/bergman.dir/main.cpp.o: /home/matheus/Documentos/doutorado_ic/tese/NM
 /usr/include/eigen3/Eigen/src/plugins/BlockMethods.h:
 
 /usr/include/x86_64-linux-gnu/bits/types/time_t.h:
-
-/usr/include/eigen3/Eigen/src/Core/products/SelfadjointMatrixVector.h:
 
 /usr/include/c++/9/ext/new_allocator.h:
 
@@ -698,6 +725,10 @@ CMakeFiles/bergman.dir/main.cpp.o: /home/matheus/Documentos/doutorado_ic/tese/NM
 /usr/include/c++/9/cerrno:
 
 /usr/include/c++/9/exception:
+
+/usr/include/eigen3/Eigen/src/Geometry/Homogeneous.h:
+
+/usr/include/c++/9/bits/stl_vector.h:
 
 /usr/include/x86_64-linux-gnu/bits/timex.h:
 
@@ -799,17 +830,13 @@ CMakeFiles/bergman.dir/main.cpp.o: /home/matheus/Documentos/doutorado_ic/tese/NM
 
 /usr/include/c++/9/bits/move.h:
 
+/usr/include/x86_64-linux-gnu/c++/9/bits/c++io.h:
+
 /usr/include/c++/9/bits/stl_function.h:
 
 /usr/include/x86_64-linux-gnu/gnu/stubs.h:
 
 /usr/include/x86_64-linux-gnu/sys/cdefs.h:
-
-/usr/include/eigen3/Eigen/src/Core/products/SelfadjointMatrixMatrix.h:
-
-/usr/include/eigen3/Eigen/src/Geometry/Hyperplane.h:
-
-/usr/include/eigen3/Eigen/src/Core/products/SelfadjointProduct.h:
 
 /usr/include/c++/9/ext/alloc_traits.h:
 
@@ -885,9 +912,9 @@ CMakeFiles/bergman.dir/main.cpp.o: /home/matheus/Documentos/doutorado_ic/tese/NM
 
 /usr/include/x86_64-linux-gnu/bits/endianness.h:
 
-/usr/include/eigen3/Eigen/src/Core/products/TriangularSolverMatrix.h:
-
 /usr/include/c++/9/bits/basic_ios.h:
+
+/usr/include/c++/9/bits/codecvt.h:
 
 /usr/include/eigen3/Eigen/src/Eigenvalues/RealQZ.h:
 
@@ -923,11 +950,13 @@ CMakeFiles/bergman.dir/main.cpp.o: /home/matheus/Documentos/doutorado_ic/tese/NM
 
 /usr/include/c++/9/bits/char_traits.h:
 
+/usr/include/eigen3/Eigen/src/misc/Kernel.h:
+
+/usr/include/c++/9/bits/stl_bvector.h:
+
 /usr/include/c++/9/bits/refwrap.h:
 
 /usr/include/eigen3/Eigen/src/Core/ProductEvaluators.h:
-
-/usr/include/c++/9/bits/locale_classes.h:
 
 /home/matheus/Documentos/doutorado_ic/tese/NMR/bergman_periodic_solution/cpp/src/main.cpp:
 
@@ -938,10 +967,6 @@ CMakeFiles/bergman.dir/main.cpp.o: /home/matheus/Documentos/doutorado_ic/tese/NM
 /usr/include/eigen3/Eigen/src/Core/util/Constants.h:
 
 /usr/include/eigen3/Eigen/src/Core/util/StaticAssert.h:
-
-/usr/include/eigen3/Eigen/src/Core/CwiseUnaryOp.h:
-
-/usr/include/eigen3/Eigen/src/Core/products/TriangularSolverVector.h:
 
 /usr/include/endian.h:
 
@@ -1011,6 +1036,20 @@ CMakeFiles/bergman.dir/main.cpp.o: /home/matheus/Documentos/doutorado_ic/tese/NM
 
 /usr/include/c++/9/bits/istream.tcc:
 
+/usr/include/x86_64-linux-gnu/c++/9/bits/basic_file.h:
+
+/usr/include/c++/9/limits:
+
+/usr/include/eigen3/Eigen/src/Core/Select.h:
+
+/usr/include/c++/9/bits/fstream.tcc:
+
+/usr/include/c++/9/bits/locale_classes.h:
+
+/usr/include/c++/9/vector:
+
+/usr/include/c++/9/bits/stl_uninitialized.h:
+
 /usr/include/eigen3/Eigen/Dense:
 
 /usr/include/eigen3/Eigen/src/Core/util/DisableStupidWarnings.h:
@@ -1071,8 +1110,6 @@ CMakeFiles/bergman.dir/main.cpp.o: /home/matheus/Documentos/doutorado_ic/tese/NM
 
 /usr/include/x86_64-linux-gnu/bits/strings_fortified.h:
 
-/usr/include/c++/9/limits:
-
 /usr/lib/gcc/x86_64-linux-gnu/9/include/xmmintrin.h:
 
 /usr/include/c++/9/climits:
@@ -1116,6 +1153,8 @@ CMakeFiles/bergman.dir/main.cpp.o: /home/matheus/Documentos/doutorado_ic/tese/NM
 /usr/include/eigen3/Eigen/src/Core/NumTraits.h:
 
 /usr/include/eigen3/Eigen/src/Core/MathFunctions.h:
+
+/usr/include/c++/9/bits/vector.tcc:
 
 /usr/include/eigen3/Eigen/src/Core/arch/Default/ConjHelper.h:
 
@@ -1201,18 +1240,12 @@ CMakeFiles/bergman.dir/main.cpp.o: /home/matheus/Documentos/doutorado_ic/tese/NM
 
 /usr/include/eigen3/Eigen/src/Core/Swap.h:
 
-/usr/include/eigen3/Eigen/src/Core/Solve.h:
-
-/usr/include/eigen3/Eigen/src/Core/products/GeneralMatrixVector.h:
-
 /usr/include/eigen3/Eigen/src/Core/BandMatrix.h:
-
-/usr/include/eigen3/Eigen/src/Core/GeneralProduct.h:
 
 /usr/include/eigen3/Eigen/src/Core/products/GeneralMatrixMatrixTriangular.h:
 
-/usr/include/eigen3/Eigen/src/Core/products/TriangularMatrixVector.h:
+/usr/include/eigen3/Eigen/src/Core/GeneralProduct.h:
 
-/usr/include/eigen3/Eigen/src/Core/Transpose.h:
+/usr/include/eigen3/Eigen/src/Core/Solve.h:
 
-/usr/include/eigen3/Eigen/src/Core/products/TriangularMatrixMatrix.h:
+/usr/include/eigen3/Eigen/src/Core/products/GeneralMatrixVector.h:

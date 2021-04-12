@@ -3,4 +3,4 @@
 #define BERGMAN_SOLUTION_VERSION_MINOR @BERGMAN_SOLUTION_VERSION_MINOR @
 
 // built-in libraries
-/* #undef USE_BERGMAN_SOLUTION */
+#define USE_LSA
