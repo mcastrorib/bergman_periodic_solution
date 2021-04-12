@@ -6,10 +6,42 @@
 #include <cmath>
 #include <omp.h>
 #include "LeastSquareAdjust.h"
+
+// include configuration file
+#include "BergmanSolution_config.h"
  
 using namespace std;
 using namespace Eigen;
 
+typedef struct Input {
+    int N;
+    double Dp;
+    double Dm;
+    double CellLength;
+    double SphereRadius;
+    double w;
+    double u;
+    double Rho;
+    double SpuriousCut;
+    int AdjustPoints;
+
+    int ka_Points;
+    double k_x;
+    double k_y;
+    double k_z;    
+    double ka_Min;
+    double ka_Max;
+
+    int timeSamples;
+    double timeMin;
+    double timeMax;
+    bool timeScale;
+    string timeSampling;
+
+    bool verbose;
+} Input;
+
+Input readConfigurationFile(string filepath);
 double *** alloc3DArray(int dimX, int dimY, int dimZ);
 void print3DArray(double ***array, int dimX, int dimY, int dimZ);
 void free3DArray(double ***array, int dimX, int dimY, int dimZ);
@@ -22,10 +54,11 @@ int checkPorePhase(double x, double y, double z, double radius);
 int checkPorePhase(Vector3d position, double radius);
 void printPhase(ArrayXd& phase, int dim, string phaseName);
 void printPhase(ArrayXcd& phase, int dim, string phaseName);
-void apply_dft(ArrayXcd& phase_kX, ArrayXd& phase_X, ArrayXXd& grid_X, ArrayXXd& grid_G, double volume, int dim);
-void apply_symmetric_dft_identity(ArrayXcd& matrix_kX, ArrayXcd& phase_kX, int dim);
+void apply_dft(ArrayXcd& phase_kX, ArrayXd& phase_X, ArrayXXd& grid_X, ArrayXXd& grid_G, double volume, int dim, bool verbose);
+void apply_symmetric_dft_identity(ArrayXcd& matrix_kX, ArrayXcd& phase_kX, int dim, bool verbose);
 int findGkIndex(Vector3cd &kVec, ArrayXXd &gridG, int dim);
 ArrayXd recoverDt(ArrayXXd& Mkt, ArrayXXd& k, ArrayXd& times, double D_p, int points, bool verbose=true);
+ArrayXd LogSpaced(int samples, double min, double max);
 void saveParameters(int N, double Dp, double Dm, double cellLength, double sphereRadius, double rho);
 void saveMktResults(ArrayXXd& k, ArrayXd& times, ArrayXXd& Mkt);
 void saveDtResults(ArrayXd& times, ArrayXd& Dt);
@@ -36,35 +69,44 @@ int main(int argc, char *argv[])
     // measure runtime
     double time = omp_get_wtime();
 
-    bool modeVerbose = false;
-    int N = 3;
-    double Dp = 2.5;
-    double Dm = 0.0;
-    double cellLength = 10.0;
-    double sphereRadius = 5.0;
-    double w = 0.9999;
-    double u = 1.0;
-    double rho = 0.0;
-    double spuriousCut = 0.25;
-    int lsPoints = 5;
+    // read input file
+    Input input = readConfigurationFile(CONFIGURATION_FILE);
+
+    bool modeVerbose = input.verbose;
+    int N = input.N;
+    double Dp = input.Dp;
+    double Dm = input.Dm;
+    double cellLength = input.CellLength;
+    double sphereRadius = input.SphereRadius;
+    double w = input.w;
+    double u = input.u;
+    double rho = input.Rho;
+    double spuriousCut = input.SpuriousCut;
+    int lsPoints = input.AdjustPoints;
 
     // create array with wave vector k
     cout << endl << "** CREATING WAVENUMBER VECTOR K AND COLLECTING TIME SAMPLES**" << endl;
-    int ka_Points = 5;
-    Vector3d ka_Direction(1.0, 0.0, 0.0);
-    double ka_Min = 0.001;
-    double ka_Max = 0.1 * M_PI;
+    int ka_Points = input.ka_Points;
+    Vector3d ka_Direction(input.k_x, input.k_y, input.k_z);
+    double ka_Min = input.ka_Min;
+    double ka_Max = input.ka_Max;
     ArrayXXd ka_Table(3, ka_Points);
     for(int coord = 0; coord < 3; coord++) 
         ka_Table.row(coord) = ka_Direction(coord) * ArrayXd::LinSpaced(ka_Points, ka_Min / cellLength, ka_Max / cellLength);
 
 
     // create time samples
-    int time_Samples = 30;
-    double time_Scale = cellLength*cellLength/Dp;
+    int time_Samples = input.timeSamples;
+    double time_Scale = 1.0;
+    if(input.timeScale) time_Scale *= cellLength*cellLength/Dp;
     ArrayXd times_Array(time_Samples);
-    times_Array = time_Scale * ArrayXd::LinSpaced(time_Samples, 0.0005, 2.0);
-    // times_Array << 0.1, 0.3, 1.0, 3.0, 10.0, 30.0, 60.0, 100.0;
+    if(input.timeSampling == "log")
+    {
+        times_Array = time_Scale * LogSpaced(time_Samples, input.timeMin, input.timeMax);
+    } else 
+    {
+        times_Array = time_Scale * ArrayXd::LinSpaced(time_Samples, input.timeMin, input.timeMax);
+    }
 
 
     // create array to store results
@@ -135,9 +177,9 @@ int main(int argc, char *argv[])
     cout << "done." << endl;
     
     // create wavenumber pore and matrix phase arrays
-    ArrayXcd pore_dG(dpoints3D); apply_dft(pore_dG, pore_dR, grid_dR, grid_dG, volume, dpoints); 
+    ArrayXcd pore_dG(dpoints3D); apply_dft(pore_dG, pore_dR, grid_dR, grid_dG, volume, dpoints, modeVerbose); 
     cout << "done." << endl;
-    ArrayXcd matrix_dG(dpoints3D); apply_symmetric_dft_identity(matrix_dG, pore_dG, dpoints); 
+    ArrayXcd matrix_dG(dpoints3D); apply_symmetric_dft_identity(matrix_dG, pore_dG, dpoints, modeVerbose); 
     cout << "done." << endl;
 
     /*
@@ -171,7 +213,8 @@ int main(int argc, char *argv[])
             for(int j = 0; j < points; j++)
             {
                 int row_index = IDX2C_3D(i, j, k, points);
-                cout << ":: Matrix_W row " << row_index << " out of " << mRows << endl;
+                if(modeVerbose) 
+                    cout << ":: Matrix_W row " << row_index << " out of " << mRows << endl;
 
                 for(int kk = 0; kk < points; kk++) 
                 {
@@ -215,7 +258,8 @@ int main(int argc, char *argv[])
             for(int j = 0; j < points; j++)
             {
                 int row_index = IDX2C_3D(i, j, k, points);
-                cout << ":: Matrix_U row " << row_index << " out of " << mRows << endl;
+                if(modeVerbose) 
+                    cout << ":: Matrix_U row " << row_index << " out of " << mRows << endl;
 
                 for(int kk = 0; kk < points; kk++) 
                 {
@@ -343,14 +387,6 @@ int main(int argc, char *argv[])
     cout << endl << "** RECOVERING D(t) **" << endl;
     ArrayXd Dts = recoverDt(M_kt, ka_Table, times_Array, Dp, lsPoints, modeVerbose);
     cout << "done." << endl;
-
-    // debug region
-    cout << endl << endl << "** DEBUG REGION **" << endl;    
-    cout << endl << "D(t):" << endl;
-    for(int time = 0; time < time_Samples; time++)
-    {
-        cout << "D(" << times_Array(time) << ") = " << Dts(time) << endl;
-    }
     
     time = omp_get_wtime() - time;
     cout << "Runtime: " << time << " s." << endl;
@@ -552,6 +588,20 @@ int findGkIndex(Vector3cd &kVec, ArrayXXd &gridG, int dim)
     return GkIndex;
 }
 
+ArrayXd LogSpaced(int samples, double min, double max)
+{
+    ArrayXd newArray(samples);
+    double step = (max - min) / ((double) samples - 1.0);
+    
+    for(int idx = 0; idx < samples; idx++)
+    {
+        double x_i = min + step * idx;
+        newArray(idx) = pow(10.0, x_i);
+    }
+
+    return newArray;
+}
+
 ArrayXXd createGrid3d(ArrayXd& points, int dim)
 {
     ArrayXXd grid(3, dim*dim*dim);
@@ -650,7 +700,7 @@ double setPorosity(double _a, double _r)
 		return 1.0 + (1.0/4.0)*M_PI - 3.0*M_PI*x*x + (8.0/3.0)*M_PI*pow(x,3);
 }
 
-void apply_dft(ArrayXcd& phase_kX, ArrayXd& phase_R, ArrayXXd& grid_R, ArrayXXd& grid_G, double volume, int dim)
+void apply_dft(ArrayXcd& phase_kX, ArrayXd& phase_R, ArrayXXd& grid_R, ArrayXXd& grid_G, double volume, int dim, bool modeVerbose)
 {
     cout << endl << "** APPLYING DFT **" << endl;
     int elems = pow(dim,3);
@@ -665,7 +715,7 @@ void apply_dft(ArrayXcd& phase_kX, ArrayXd& phase_R, ArrayXXd& grid_R, ArrayXXd&
             for(int j = 0; j < dim; j++) 
             {
                 count += 1;
-                if(count % sliceDim == 0) cout << ":: Pore_dg " << count << " out of " << elems << endl;
+                if(modeVerbose == true and count % sliceDim == 0) cout << ":: Pore_dg " << count << " out of " << elems << endl;
                 int index = IDX2C_3D(i,j,k,dim);
                 Vector3cd dG(grid_G(0,index), grid_G(1,index), grid_G(2,index));
                 complex<double> gSum = 0.0;
@@ -689,7 +739,7 @@ void apply_dft(ArrayXcd& phase_kX, ArrayXd& phase_R, ArrayXXd& grid_R, ArrayXXd&
     }
 }
 
-void apply_symmetric_dft_identity(ArrayXcd& matrix_kX, ArrayXcd& pore_kX, int dim)
+void apply_symmetric_dft_identity(ArrayXcd& matrix_kX, ArrayXcd& pore_kX, int dim, bool modeVerbose)
 {
     cout << endl << "** APPLYING DFT SYMMETRIC IDENTITY **" << endl;
     int count = 0;
@@ -702,7 +752,7 @@ void apply_symmetric_dft_identity(ArrayXcd& matrix_kX, ArrayXcd& pore_kX, int di
             for(int j = 0; j < dim; j++)
             {
                 count += 1;
-                if(count % sliceDim == 0) cout << ":: Matrix_dg " << count << " out of " << elems << endl;
+                if(modeVerbose and count % sliceDim == 0) cout << ":: Matrix_dg " << count << " out of " << elems << endl;
                 int index = IDX2C_3D(i,j,k,dim);
                 matrix_kX(index) = (-1.0) * pore_kX(index);
             }
@@ -763,4 +813,127 @@ void free3DArray(double ***array, int dimX, int dimY, int dimZ)
 
     delete [] array;
     array = NULL;
+}
+
+Input readConfigurationFile(string filepath)
+{
+    ifstream fileObject;
+    fileObject.open(filepath, ios::in);
+    if (fileObject.fail())
+    {
+        cout << "Could not open input file from disc." << endl;
+        exit(1);
+    }
+
+    string line;
+    Input newInput;
+    while(fileObject)
+    {
+    	getline(fileObject, line);
+
+    	string s = line;
+    	string delimiter = ": ";
+		size_t pos = 0;
+		string token, content;
+    	while ((pos = s.find(delimiter)) != std::string::npos) 
+    	{
+			token = s.substr(0, pos);
+			content = s.substr(pos + delimiter.length(), s.length());
+			s.erase(0, pos + delimiter.length());
+
+			if (token == "N")
+            {
+                newInput.N = std::stoi(content);
+            } else 
+            if (token == "Dp")
+            {
+                newInput.Dp = std::stod(content);
+            } else
+            if (token == "Dm")
+            {
+                newInput.Dm = std::stod(content);
+            } else
+            if (token == "CellLength")
+            {
+                newInput.CellLength = std::stod(content);
+            } else
+            if (token == "SphereRadius")
+            {
+                newInput.SphereRadius = std::stod(content);
+            } else
+            if (token == "w")
+            {
+                newInput.w = std::stod(content);
+            } else
+            if (token == "u")
+            {
+                newInput.u = std::stod(content);
+            } else
+            if (token == "Rho")
+            {
+                newInput.Rho = std::stod(content);
+            } else
+            if (token == "SpuriousCut")
+            {
+                newInput.SpuriousCut = std::stod(content);
+            } else
+            if (token == "AdjustPoints")
+            {
+                newInput.AdjustPoints = std::stoi(content);
+            } else
+            if (token == "ka_Points")
+            {
+                newInput.ka_Points = std::stoi(content);
+            } else
+            if (token == "ka_x")
+            {
+                newInput.k_x = std::stod(content);
+            } else
+            if (token == "ka_y")
+            {
+                newInput.k_y = std::stod(content);
+            } else
+            if (token == "ka_z")
+            {
+                newInput.k_z = std::stod(content);
+            } else
+            if (token == "ka_Min")
+            {
+                newInput.ka_Min = std::stod(content);
+            } else
+            if (token == "ka_Max")
+            {
+                newInput.ka_Max = std::stod(content);
+            } else
+            if (token == "timeSamples")
+            {
+                newInput.timeSamples = std::stoi(content);
+            } else
+            if (token == "timeMin")
+            {
+                newInput.timeMin = std::stod(content);
+            } else
+            if (token == "timeMax")
+            {
+                newInput.timeMax = std::stod(content);
+            } else
+            if (token == "timeScale")
+            {
+                if(content == "true") newInput.timeScale = true;
+                else newInput.timeScale = false;
+            } else
+            if (token == "timeSampling")
+            {
+                newInput.timeSampling = content;
+            }  else
+            if (token == "verbose")
+            {
+                if(content == "true") newInput.verbose = true;
+                else newInput.verbose = false;
+            } 
+		}
+    } 
+
+    fileObject.close();
+    return newInput;
 }

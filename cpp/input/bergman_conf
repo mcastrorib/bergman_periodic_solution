@@ -1,0 +1,23 @@
+-- Bergman solution configuration/input parameters file
+N: 3
+Dp: 2.5
+Dm: 0.0
+CellLength: 10.0
+SphereRadius: 5.0
+w: 0.9999
+u: 1.0
+Rho: 0.0
+SpuriousCut: 0.25
+AdjustPoints: 5
+ka_Points: 5
+ka_x: 1.0
+ka_y: 0.0
+ka_z: 0.0
+ka_Min: 0.001
+ka_Max: 0.314159265
+timeSamples: 30
+timeMin: 0.0005
+timeMax: 2.0
+timeScale: true
+timeSampling: linear
+verbose: false

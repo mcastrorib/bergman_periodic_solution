@@ -1,1 +1,0 @@
-/usr/bin/c++  -fopenmp -O3 -DNDEBUG CMakeFiles/bergman.dir/main.cpp.o -o bergman  LSA/libLSA.a /usr/lib/gcc/x86_64-linux-gnu/9/libgomp.so /usr/lib/x86_64-linux-gnu/libpthread.so 

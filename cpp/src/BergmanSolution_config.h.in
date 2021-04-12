@@ -4,3 +4,5 @@
 
 // built-in libraries
 #cmakedefine USE_LSA
+
+#define CONFIGURATION_FILE "${PROJECT_BINARY_DIR}/../../input/bergman_conf"
